@@ -1,0 +1,81 @@
+[project]
+name = "dedeucerl"
+version = "1.0.0"
+description = "A modular framework for active system identification benchmarks"
+readme = "README.md"
+license = {file = "LICENSE"}
+authors = [
+    {name = "Vedansh"},
+]
+keywords = [
+    "reinforcement-learning",
+    "llm",
+    "benchmarks",
+    "evaluation",
+    "active-learning",
+    "system-identification",
+    "mealy-machines",
+    "api-testing",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+requires-python = ">=3.10"
+dependencies = [
+    "verifiers>=0.1.9",
+    "datasets>=2.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/AashVed/DedeuceRL"
+Repository = "https://github.com/AashVed/DedeuceRL"
+Issues = "https://github.com/AashVed/DedeuceRL/issues"
+
+[project.optional-dependencies]
+openai = [
+    "openai>=1.0",
+]
+anthropic = [
+    "anthropic>=0.20",
+]
+gemini = [
+    "google-genai>=0.1",  # new Gemini SDK (preferred)
+    "google-generativeai>=0.5",
+]
+all = [
+    "openai>=1.0",
+    "anthropic>=0.20",
+    "google-genai>=0.1",
+    "google-generativeai>=0.5",
+]
+dev = [
+    "pytest>=7.0",
+    "pytest-asyncio>=0.21",
+    "ruff>=0.1",
+]
+
+[project.scripts]
+dedeucerl-eval = "dedeucerl.cli.eval:main"
+dedeucerl-generate = "dedeucerl.cli.generate:main"
+dedeucerl-aggregate = "dedeucerl.cli.aggregate:main"
+dedeucerl-selfcheck = "dedeucerl.cli.selfcheck:main"
+
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["dedeucerl*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"

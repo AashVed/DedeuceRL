@@ -1,0 +1,83 @@
+# DedeuceRL .gitignore
+
+# Internal dev docs (keep locally, don't publish)
+plan.md
+code.md
+prompts.md
+gen_examples.py
+tasks_eg.md
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Testing
+.pytest_cache/
+.coverage
+.tox/
+.nox/
+htmlcov/
+.hypothesis/
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Local config
+.env
+.env.local
+*.local
+
+# Results/outputs (generated during runs)
+results*.jsonl
+*.jsonl
+*.jsonl.bak
+*.jsonl.gz
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Documentation build
+docs/_build/
+site/
+
+# Ruff cache
+.ruff_cache/
+
+# Mypy
+.mypy_cache/
