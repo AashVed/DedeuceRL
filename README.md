@@ -261,14 +261,14 @@ Output columns: `model`, `n_episodes`, `success_rate`, `trap_rate`, `avg_queries
 
 ## Guide: Training with Verifiers
 
-## Logging and Debugging
+### Logging and Debugging
 
 DedeuceRL includes a small structured logging utility intended for *library users* embedding the environments in their own training/eval loops.
 
 - Logger helpers live in `dedeucerl/utils/logging.py` (e.g., `configure_logging()`, `log_episode_start()`).
 - The CLI tools intentionally use `print()` for predictable, copy-pastable terminal output.
 
-## Optional Type Helpers
+### Optional Type Helpers
 
 The dataclasses in `dedeucerl/core/types.py` (`EpisodeState`, `ProbeResult`, `SubmitResult`) are optional, exported helpers for users who want structured types in custom loops. The built-in skins operate on `Dict[str, Any]` state for compatibility with `verifiers`.
 
@@ -857,7 +857,7 @@ MIT License. See [LICENSE](LICENSE) for details.
 
 Zenodo DOIs:
 - Concept DOI (all versions): `10.5281/zenodo.18280315`
-- Version DOI (v1.0.1): `10.5281/zenodo.18280316`
+- Version DOI (this release): `10.5281/zenodo.18280316`
 
 If you use DedeuceRL in your research, please cite:
 
@@ -882,7 +882,7 @@ DedeuceRL builds on concepts from:
 
 ---
 
-## Developer TODO Notes
+## Roadmap Notes
 
 - **SUL adapter:** `core/automata.py` already supports the needed adapter pattern via `get_transition(state, action) -> (next_state, output)` callables. A formal SUL interface is optional; add only if multiple skins start duplicating glue.
 - **Conformance testing:** W/Wp-method style conformance testing typically assumes a `reset()` capability (or equivalent) so tests can be run from a known start state.
