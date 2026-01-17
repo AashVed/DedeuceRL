@@ -4,6 +4,7 @@
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18280315.svg)](https://doi.org/10.5281/zenodo.18280315)
 
 ---
 
@@ -854,6 +855,10 @@ MIT License. See [LICENSE](LICENSE) for details.
 
 ## Citation
 
+Zenodo DOIs:
+- Concept DOI (all versions): `10.5281/zenodo.18280315`
+- Version DOI (v1.0.1): `10.5281/zenodo.18280316`
+
 If you use DedeuceRL in your research, please cite:
 
 ```bibtex
@@ -861,6 +866,7 @@ If you use DedeuceRL in your research, please cite:
   title = {DedeuceRL: A Modular Framework for Active System Identification Benchmarks},
   author = {Vedansh},
   year = {2026},
+  doi = {10.5281/zenodo.18280315},
   url = {https://github.com/AashVed/DedeuceRL}
 }
 ```
