@@ -172,6 +172,52 @@ print(f"Generated {len(dataset)} episodes")
 print(f"Example prompt: {dataset[0]['prompt'][0]['content'][:100]}...")
 ```
 
+### Step 4: CLI Generator (Recommended)
+
+For larger releases and community benchmarks, prefer the CLI generator (it records the generation parameters in the output JSON and avoids embedding generation code in notebooks).
+
+```bash
+# Inspect available parameters for a skin
+# (each skin exposes different knobs)
+dedeucerl-generate --skin mealy --show-skin-params --seeds 0 --budget 100 --no-trap
+
+dedeucerl-generate --skin protocol --show-skin-params --seeds 0 --budget 120 --no-trap
+
+dedeucerl-generate --skin apienv --show-skin-params --seeds 0 --budget 200 --no-trap
+
+# Example: 100-episode Mealy test split (4 states, budget 100, traps OFF)
+dedeucerl-generate \
+  --skin mealy \
+  --seeds 0-99 \
+  --subset test \
+  --budget 100 \
+  --n-states 4 \
+  --no-trap \
+  -o seeds/mealy_n4_b100_test.json
+
+# Example: 100-episode Protocol test split (5 endpoints, 4 states, budget 120, traps OFF)
+dedeucerl-generate \
+  --skin protocol \
+  --seeds 0-99 \
+  --subset test \
+  --budget 120 \
+  --n-endpoints 5 \
+  --n-states 4 \
+  --no-trap \
+  -o seeds/protocol_n4_e5_b120_test.json
+
+# Example: 100-episode APIEnv test split (full catalog, 7 states, budget 200, traps OFF)
+dedeucerl-generate \
+  --skin apienv \
+  --seeds 0-99 \
+  --subset test \
+  --budget 200 \
+  --n-endpoints 7 \
+  --n-states 7 \
+  --no-trap \
+  -o seeds/apienv_n7_e7_b200_test.json
+```
+
 ### Difficulty Scaling
 
 | Parameter | Effect on Difficulty |
@@ -256,6 +302,13 @@ dedeucerl-aggregate results/*.jsonl --format markdown
 ```
 
 Output columns: `model`, `n_episodes`, `success_rate`, `trap_rate`, `avg_queries`, `avg_reward`
+
+---
+
+## Hugging Face Dataset
+
+Public task splits (MIT-licensed) are available at:
+- `https://huggingface.co/datasets/comfortably-dumb/DedeuceRL`
 
 ---
 
@@ -368,7 +421,7 @@ dedeucerl-eval \
 - `openai:gpt-4o`, `openai:gpt-4-turbo`, `openai:gpt-3.5-turbo`
 - `anthropic:claude-3-opus-20240229`, `anthropic:claude-3-sonnet-20240229`
 - `gemini:gemini-1.5-pro`, `gemini:gemini-1.5-flash`
-- `openrouter:<any-model>` (requires `OPENAI_BASE_URL` set)
+- `openrouter:<any-model>` (defaults to OpenRouter base URL; override via `OPENAI_BASE_URL`)
 
 ### `dedeucerl-aggregate`
 

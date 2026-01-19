@@ -67,6 +67,9 @@ results*.jsonl
 *.jsonl.bak
 *.jsonl.gz
 
+# Hugging Face dataset export (local-only)
+HF_DATA/
+
 # Temporary files
 *.tmp
 *.temp

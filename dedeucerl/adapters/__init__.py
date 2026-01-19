@@ -1,5 +1,9 @@
 """Model adapters for DedeuceRL."""
 
+from __future__ import annotations
+
+import os
+
 from .base import BaseAdapter, ModelReply, decompose_model_spec
 from .openai import OpenAIAdapter
 from .anthropic import AnthropicAdapter
@@ -37,6 +41,16 @@ def get_adapter(model_spec: str, **kwargs) -> BaseAdapter:
         raise ValueError(
             f"Unknown provider: {provider}. Supported: {list(ADAPTER_REGISTRY.keys())}"
         )
+
+    # Base URL handling for OpenAI-compatible endpoints.
+    # - If OPENAI_BASE_URL is set, use it for openai/openrouter.
+    # - Otherwise, default OpenRouter base URL for provider=openrouter.
+    if "base_url" not in kwargs and provider in ("openai", "openrouter"):
+        env_base_url = os.getenv("OPENAI_BASE_URL")
+        if env_base_url:
+            kwargs["base_url"] = env_base_url
+        elif provider == "openrouter":
+            kwargs["base_url"] = "https://openrouter.ai/api/v1"
 
     adapter_cls = ADAPTER_REGISTRY[provider]
     return adapter_cls(model_id, **kwargs)
