@@ -855,21 +855,7 @@ MIT License. See [LICENSE](LICENSE) for details.
 
 ## Citation
 
-Zenodo DOIs:
-- Concept DOI (all versions): `10.5281/zenodo.18280315`
-- Version DOI (this release): `10.5281/zenodo.18280316`
-
-If you use DedeuceRL in your research, please cite:
-
-```bibtex
-@software{dedeucerl2026,
-  title = {DedeuceRL: A Modular Framework for Active System Identification Benchmarks},
-  author = {Vedansh},
-  year = {2026},
-  doi = {10.5281/zenodo.18280315},
-  url = {https://github.com/AashVed/DedeuceRL}
-}
-```
+Citation metadata lives in `CITATION.cff` (GitHub will also show it in the sidebar under “Cite this repository”).
 
 ---
 
