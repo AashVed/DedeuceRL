@@ -3,14 +3,11 @@ message: "If you use this software, please cite it using these metadata."
 title: "DedeuceRL: A Modular Framework for Active System Identification Benchmarks"
 authors:
   - name: "Vedansh"
-version: 1.0.1
-date-released: "2026-01-17"
+version: 1.0.2
+date-released: "2026-01-22"
 license: "MIT"
 repository-code: "https://github.com/AashVed/DedeuceRL"
 identifiers:
   - description: "Concept DOI (all versions)"
     type: doi
     value: "10.5281/zenodo.18280315"
-  - description: "Version DOI"
-    type: doi
-    value: "10.5281/zenodo.18280316"

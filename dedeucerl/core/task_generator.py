@@ -192,22 +192,29 @@ class TaskGenerator:
         merged["budget"] = budget
         merged["trap"] = trap
 
+        # Never forward None values into domain_spec/build_observation.
+        # Passing None can overwrite DomainSpec defaults/examples, producing
+        # prompt observations like "endpoints": null.
+        merged_non_null = {k: v for k, v in merged.items() if v is not None}
+        merged_non_null["budget"] = budget
+        merged_non_null["trap"] = trap
+
         sig = inspect.signature(self.skin_cls.domain_spec)
         accepts_var_kw = any(
             p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()
         )
 
         if accepts_var_kw:
-            spec_kwargs = merged
+            spec_kwargs = merged_non_null
         else:
             allowed = set(sig.parameters.keys())
             allowed.discard("cls")
-            spec_kwargs = {k: v for k, v in merged.items() if k in allowed}
+            spec_kwargs = {k: v for k, v in merged_non_null.items() if k in allowed}
 
         spec = self.skin_cls.domain_spec(**spec_kwargs)
 
         # Populate observation fields with any values we have.
-        obs_values = {k: v for k, v in merged.items() if k in spec.observation_fields}
+        obs_values = {k: v for k, v in merged_non_null.items() if k in spec.observation_fields}
         obs_values["budget"] = budget
         obs_values["trap"] = trap
         return spec.build_observation(**obs_values)

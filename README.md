@@ -27,34 +27,34 @@ This framework enables researchers to:
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                         DedeuceRL                               │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
+┌────────────────────────────────────────────────────────────────┐
+│                         DedeuceRL                              │
+├────────────────────────────────────────────────────────────────┤
+│                                                                │
 │  ┌─────────────────────────────────────────────────────────┐   │
-│  │                    Evaluation Harness                    │   │
+│  │                    Evaluation Harness                   │   │
 │  │  • CLI (dedeucerl-eval, dedeucerl-aggregate)            │   │
 │  │  • Model Adapters (OpenAI, Anthropic, Gemini)           │   │
-│  │  • Result Aggregation & Leaderboard                      │   │
+│  │  • Result Aggregation & Leaderboard                     │   │
 │  └─────────────────────────────────────────────────────────┘   │
-│                              │                                  │
+│                              │                                 │
 │  ┌───────────────────────────┴───────────────────────────┐     │
-│  │                    Core Abstraction                    │     │
-│  │  • HiddenSystemEnv (base class)                        │     │
-│  │  • SkinConfig (per-skin settings)                      │     │
-│  │  • TaskGenerator (dataset building)                    │     │
-│  │  • Metrics (success, efficiency, safety)               │     │
+│  │                    Core Abstraction                   │     │
+│  │  • HiddenSystemEnv (base class)                       │     │
+│  │  • SkinConfig (per-skin settings)                     │     │
+│  │  • TaskGenerator (dataset building)                   │     │
+│  │  • Metrics (success, efficiency, safety)              │     │
 │  └───────────────────────────────────────────────────────┘     │
-│                              │                                  │
+│                              │                                 │
 │  ┌───────────────────────────┴───────────────────────────┐     │
-│  │                        Skins                           │     │
-│  │  ┌─────────┐  ┌─────────┐  ┌─────────┐             │     │
-│  │  │ Mealy   │  │Protocol │  │ APIEnv  │  ...         │     │
-│  │  │  (v1)   │  │  (v1)   │  │  (v1)   │             │     │
-│  │  └─────────┘  └─────────┘  └─────────┘             │     │
+│  │                        Skins                          │     │
+│  │  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌──────────┐  │     │
+│  │  │ Mealy   │  │Protocol │  │ APIEnv  │  │ExprPolicy│  │     │
+│  │  │  (v1)   │  │  (v1)   │  │  (v1)   │  │  (v1)    │  │     │
+│  │  └─────────┘  └─────────┘  └─────────┘  └──────────┘  │     │
 │  └───────────────────────────────────────────────────────┘     │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+│                                                                │
+└────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -183,7 +183,8 @@ dedeucerl-generate --skin mealy --show-skin-params --seeds 0 --budget 100 --no-t
 
 dedeucerl-generate --skin protocol --show-skin-params --seeds 0 --budget 120 --no-trap
 
-dedeucerl-generate --skin apienv --show-skin-params --seeds 0 --budget 200 --no-trap
+  dedeucerl-generate --skin apienv --show-skin-params --seeds 0 --budget 200 --no-trap
+  dedeucerl-generate --skin exprpolicy --show-skin-params --seeds 0 --budget 200 --no-trap
 
 # Example: 100-episode Mealy test split (4 states, budget 100, traps OFF)
 dedeucerl-generate \
@@ -528,6 +529,20 @@ A more realistic API identification task: operations are `(method, endpoint, var
 }
 ```
 
+### ExprPolicyEnv (Typed Policy DSL Debugging)
+
+Models a common real-world agent workflow: iterating on a buggy typed policy expression using compiler feedback and deterministic tests, then submitting a fix that generalizes to hidden cases.
+
+**Tools:**
+- `type_check(expr: str)` - Parse + type-check, returns structured diagnostics
+- `run_tests(expr: str, suite: str)` - Run deterministic public / hidden-preview suites
+- `submit(expr: str)` - Full hidden evaluation
+
+**Features:**
+- Hidden tests + optional counterexample feedback
+- Tool costs (CI is expensive) and `max_expr_len` constraints
+- Optional trap tokens (banned substrings)
+
 ## Guide: Designing New Skins
 
 Creating a new skin involves 6 steps. Use `MealyEnv` as a reference implementation.
@@ -545,6 +560,7 @@ Decide on:
 | Mealy | Transition table | Execute symbol | Full transition table |
 | Protocol | API state machine | HTTP request | State-dependent transition spec |
 | APIEnv | SaaS API workflow | HTTP request + variant | State-dependent transition spec |
+| ExprPolicyEnv | Typed policy DSL | Compile + run tests | Corrected expression |
 
 ### Step 2: Create the Skin File
 
@@ -847,7 +863,10 @@ DedeuceRL/
 │   │   └── task_generator.py   # TaskGenerator for datasets
 │   ├── skins/
 │   │   ├── __init__.py         # SKIN_REGISTRY
-│   │   └── mealy.py            # MealyEnv implementation
+│   │   ├── mealy.py            # MealyEnv implementation
+│   │   ├── protocol.py         # ProtocolEnv implementation
+│   │   ├── apienv.py           # APIEnv implementation
+│   │   └── exprpolicy.py       # ExprPolicyEnv implementation
 │   ├── adapters/
 │   │   ├── __init__.py
 │   │   ├── base.py             # BaseAdapter, ModelReply
@@ -856,6 +875,7 @@ DedeuceRL/
 │   │   └── gemini.py
 │   ├── cli/
 │   │   ├── eval.py             # dedeucerl-eval
+│   │   ├── generate.py         # dedeucerl-generate
 │   │   ├── aggregate.py        # dedeucerl-aggregate
 │   │   └── selfcheck.py        # dedeucerl-selfcheck
 │   └── utils/
@@ -865,7 +885,8 @@ DedeuceRL/
 │   └── mealy_test.json
 ├── tests/
 │   ├── test_core.py
-│   └── test_mealy.py
+│   ├── test_mealy.py
+│   └── test_universal_skins.py
 ├── examples/
 │   └── basic_eval.py
 ├── pyproject.toml
