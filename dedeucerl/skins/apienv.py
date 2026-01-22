@@ -483,9 +483,8 @@ class APIEnv(HiddenSystemEnv):
                 "budget_left": state["budget"],
                 "queries_used": state["queries_used"],
                 "trap_hit": state["trap_hit"],
+                "counterexample": cex,
             }
-            if cex is not None:
-                payload["counterexample"] = cex
             return json.dumps(payload)
 
         state["ok"] = not state["trap_hit"]
@@ -496,6 +495,7 @@ class APIEnv(HiddenSystemEnv):
                 "budget_left": state["budget"],
                 "queries_used": state["queries_used"],
                 "trap_hit": state["trap_hit"],
+                "counterexample": None,
             }
         )
 

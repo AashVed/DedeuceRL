@@ -139,6 +139,7 @@ class TestSkinRegistry:
         assert "mealy" in SKIN_REGISTRY
         assert "protocol" in SKIN_REGISTRY
         assert "apienv" in SKIN_REGISTRY
+        assert "exprpolicy" in SKIN_REGISTRY
 
     def test_skins_have_required_methods(self):
         """Test that all skins implement required methods."""
