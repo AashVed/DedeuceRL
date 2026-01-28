@@ -654,6 +654,7 @@ class APIEnv(HiddenSystemEnv):
                 "Your goal is to infer a behaviorally equivalent specification of the API state machine.\n"
                 "Return ONLY function tool calls; never output natural language.\n\n"
                 "Episode semantics:\n"
+                "- Stateful episode: the API's state persists across all api_call() calls; there are no resets.\n"
                 "- You start in hidden state 0.\n"
                 "- Each api_call consumes 1 query from the budget.\n"
                 "- submit_spec consumes 1 query. If correct, it ends the episode; otherwise it continues"

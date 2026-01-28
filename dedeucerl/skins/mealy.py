@@ -594,11 +594,12 @@ class MealyEnv(HiddenSystemEnv):
                 "Objective: exactly identify the machine and submit the full transition table via submit_table(table_json).\n"
                 "Return ONLY function tool calls; never output natural language.\n\n"
                 "Episode semantics:\n"
-                "- Start state is 0; the hidden state updates only when you call act(symbol).\n"
-                "- Each act() consumes 1 query from the budget.\n"
-                "- submit_table(table_json): consumes 1 query. If correct, it ends the episode; otherwise it continues"
-                + (" (a counterexample is returned)." if feedback else ".")
-                + " The episode also ends when budget is exhausted.\n\n"
+                "- Stateful episode: the machine's state persists across all act() calls; there are no resets.\n"
+                "- Start state is 0. Each act(symbol) consumes 1 query, produces an output, and advances the hidden state.\n"
+                "- Invalid symbols still consume 1 query and return an error.\n"
+                "- submit_table(table_json): consumes 1 query. Correct submission ends the episode; incorrect continues"
+                + (" (with counterexample)." if feedback else ".")
+                + " Budget=0 also ends the episode.\n\n"
                 "Tools:\n" + tools_text + "\n\n"
                 "Submit-table JSON schema:\n"
                 '{"n": <int>, "start": 0, "trans": {"0": {"A": [<ns>, <out>], "B": [...], "C": [...]}, ...}}\n\n'
