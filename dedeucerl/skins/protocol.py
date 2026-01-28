@@ -676,6 +676,7 @@ class ProtocolEnv(HiddenSystemEnv):
                 "IMPORTANT: The API has hidden states. The SAME call from DIFFERENT states\n"
                 "may produce DIFFERENT responses and transitions. You must track the state.\n\n"
                 "Episode semantics:\n"
+                "- Stateful episode: the API's state persists across all api_call() calls; there are no resets.\n"
                 f"- The API has {n_states} hidden states (you start in state 0).\n"
                 "- Each api_call() consumes 1 query from the budget.\n"
                 + (
