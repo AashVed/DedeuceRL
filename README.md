@@ -1,192 +1,198 @@
 # DedeuceRL
 
-**A Modular Framework for Active System Identification Benchmarks**
+**Benchmark LLMs on Active System Identification** — probe hidden systems, form hypotheses, verify correctness.
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![CI](https://github.com/AashVed/DedeuceRL/actions/workflows/ci.yml/badge.svg)](https://github.com/AashVed/DedeuceRL/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/dedeucerl.svg)](https://pypi.org/project/dedeucerl/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Dataset](https://img.shields.io/badge/🤗_Dataset-DedeuceRL-yellow)](https://huggingface.co/datasets/comfortably-dumb/DedeuceRL)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18280315.svg)](https://doi.org/10.5281/zenodo.18280315)
 
----
-
-## Overview
-
-DedeuceRL is a modular, extensible framework for benchmarking LLM agents on **active system identification** tasks. The core paradigm:
-
-1. **Hidden System**: An unknown system with hidden dynamics (e.g., a Mealy machine or API state machine)
-2. **Probe Actions**: The agent queries the system to gather observations (each probe costs 1 budget unit)
-3. **Hypothesis Submission**: The agent submits a hypothesis (each submission costs 1 budget unit; correct ends the episode)
-4. **Verification**: The hypothesis is checked for correctness (possibly up to isomorphism)
-
-This framework enables researchers to:
-- **Evaluate** LLM agents on active system identification tasks
-- **Train** agents via RL on these environments (compatible with `verifiers` library)
-- **Create new skins** (domains) without reimplementing core infrastructure
+```bash
+pip install dedeucerl
+dedeucerl-generate --skin mealy --seeds 0-4 --budget 25 --n-states 3 -o tasks.json
+dedeucerl-eval --skin mealy --split tasks.json --model heuristic:none --out results.jsonl
+```
 
 ---
 
-## Architecture
+## Why DedeuceRL?
 
-```
-┌────────────────────────────────────────────────────────────────┐
-│                         DedeuceRL                              │
-├────────────────────────────────────────────────────────────────┤
-│                                                                │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │                    Evaluation Harness                   │   │
-│  │  • CLI (dedeucerl-eval, dedeucerl-aggregate)            │   │
-│  │  • Model Adapters (OpenAI, Anthropic, Gemini)           │   │
-│  │  • Result Aggregation & Leaderboard                     │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                              │                                 │
-│  ┌───────────────────────────┴───────────────────────────┐     │
-│  │                    Core Abstraction                   │     │
-│  │  • HiddenSystemEnv (base class)                       │     │
-│  │  • SkinConfig (per-skin settings)                     │     │
-│  │  • TaskGenerator (dataset building)                   │     │
-│  │  • Metrics (success, efficiency, safety)              │     │
-│  └───────────────────────────────────────────────────────┘     │
-│                              │                                 │
-│  ┌───────────────────────────┴───────────────────────────┐     │
-│  │                        Skins                          │     │
-│  │  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌──────────┐  │     │
-│  │  │ Mealy   │  │Protocol │  │ APIEnv  │  │ExprPolicy│  │     │
-│  │  │  (v1)   │  │  (v1)   │  │  (v1)   │  │  (v1)    │  │     │
-│  │  └─────────┘  └─────────┘  └─────────┘  └──────────┘  │     │
-│  └───────────────────────────────────────────────────────┘     │
-│                                                                │
-└────────────────────────────────────────────────────────────────┘
-```
+Modern LLMs excel at knowledge retrieval and static reasoning, but struggle with **active exploration** — systematically probing unknown systems and deducing their structure from observations.
+
+DedeuceRL benchmarks this capability by requiring agents to:
+
+| Capability | What We Test |
+|------------|--------------|
+| **Systematic Exploration** | Strategically select probes to maximize information gain |
+| **Hypothesis Formation** | Build mental models of hidden system dynamics |
+| **Efficient Verification** | Minimize queries while ensuring correctness |
+| **Safety Awareness** | Avoid dangerous "trap" states that penalize reward |
+
+> **Research Context**: Active system identification builds on Angluin's L* algorithm for active automata learning, conformance testing (W-method), and query-based learning theory. See [Angluin (1987)](https://doi.org/10.1016/0890-5401(87)90052-6), [Vaandrager (2017)](https://doi.org/10.1007/978-3-319-57288-8_1).
+
+---
+
+## Table of Contents
+
+- [Installation](#installation)
+- [Quickstart](#quickstart)
+- [Available Skins](#available-skins)
+- [Interactive Game](#interactive-game)
+- [Training with RL](#training-with-rl)
+- [CLI Reference](#cli-reference)
+- [Creating New Skins](#creating-new-skins)
+- [Metrics](#metrics)
+- [Citation](#citation)
+- [Contributing](CONTRIBUTING.md)
 
 ---
 
 ## Installation
 
-### From Source
+```bash
+pip install dedeucerl                   # Core
+pip install "dedeucerl[openai]"         # + OpenAI adapter
+pip install "dedeucerl[all]"            # All providers
+```
+
+<details>
+<summary><strong>Development installation</strong></summary>
 
 ```bash
 git clone https://github.com/AashVed/DedeuceRL.git
 cd DedeuceRL
-
-# Core install (no provider SDKs)
-pip install -e .
-
-# Provider adapters (optional extras)
-pip install -e ".[openai]"      # OpenAI / OpenAI-compatible APIs
-pip install -e ".[anthropic]"   # Anthropic Claude
-pip install -e ".[gemini]"      # Google Gemini
-# Or all providers at once:
-pip install -e ".[all]"
-```
-
-### Dependencies
-
-- Python 3.10+
-- Core: `verifiers>=0.1.9`, `datasets>=2.0`
-- Optional provider extras: `openai`, `anthropic`, `google-genai` / `google-generativeai`
-
-### Development Installation
-
-```bash
 pip install -e ".[dev]"
 ```
 
+</details>
+
+**Requirements:** Python 3.10+ · `verifiers>=0.1.9` · `datasets>=2.0`
+
 ---
 
-## Quick Start
+## Quickstart
+
+### 1. Generate a task split
 
 ```bash
-# 1. Generate tasks
-python -c "
-from dedeucerl.skins import MealyEnv
-from dedeucerl.core import TaskGenerator
+dedeucerl-generate --skin mealy --seeds 0-9 --budget 25 --n-states 3 -o tasks.json
+```
 
-gen = TaskGenerator(MealyEnv)
-split = gen.generate_split(seeds=range(10), budget=25, subset_name='dev', n_states=3)
-gen.save_split(split, 'seeds/my_split.json')
-"
+### 2. Evaluate a model
 
-# 2. Run evaluation
-dedeucerl-eval --skin mealy --split seeds/my_split.json --model openai:gpt-4o --out results.jsonl
+```bash
+export OPENAI_API_KEY="sk-..."
+dedeucerl-eval --skin mealy --split tasks.json --model openai:gpt-4o --out results.jsonl
+```
 
-# 3. View results
+### 3. View results
+
+```bash
 dedeucerl-aggregate results.jsonl --format markdown
 ```
 
+**Output:**
+```
+| Model         | Episodes | Success Rate | Trap Rate | Avg Queries | Avg Reward |
+|---------------|----------|--------------|-----------|-------------|------------|
+| openai:gpt-4o | 10       | 40.0%        | 20.0%     | 18.2        | 0.318      |
+```
+
+
+## Available Skins
+
+DedeuceRL ships with multiple "skins" — domain-specific instantiations of the active identification paradigm:
+
+| Skin | Domain | What the Agent Must Identify |
+|------|--------|------------------------------|
+| **`mealy`** | Automata Theory | Hidden Mealy machine (state × input → output) |
+| **`protocol`** | API Testing | REST API state-dependent behavior |
+| **`apienv`** | SaaS Systems | API with methods, endpoints, variants, response schemas |
+| **`exprpolicy`** | DSL Debugging | Typed policy expression (compile + test + submit) |
+
+<details>
+<summary><strong>Skin details</strong></summary>
+
+### Mealy (Reference Skin)
+
+The agent identifies a hidden Mealy machine (finite-state transducer).
+
+- **Tools:** `act(symbol)` → probe, `submit_table(json)` → submit hypothesis
+- **Features:** Isomorphism checking, counterexample feedback, trap transitions
+- **Guarantees:** Generated machines are minimal and fully reachable
+
+### Protocol
+
+Reverse-engineer a stateful REST API.
+
+- **Tools:** `api_call(method, endpoint)` → probe, `submit_spec(json)` → submit
+- **Features:** State-dependent HTTP responses, behavioral equivalence
+
+### APIEnv
+
+Realistic SaaS API identification with variants and response schemas.
+
+- **Tools:** `api_call(method, endpoint, variant)` → probe, `submit_spec(json)` → submit
+- **Features:** Complex multi-dimensional action space
+
+### ExprPolicy
+
+Debug a typed policy DSL using compiler feedback and test suites.
+
+- **Tools:** `type_check(expr)`, `run_tests(expr, suite)`, `submit(expr)`
+- **Features:** Hidden tests, counterexample feedback, token constraints
+
+</details>
+
 ---
 
-## Guide: Generating Tasks
+## Interactive Game
 
-DedeuceRL uses a **TaskGenerator** to create reproducible evaluation splits from any skin.
+Play any skin as a human agent to understand the challenge:
 
-### Step 1: Choose a Skin
-
-```python
-from dedeucerl.skins import MealyEnv, ProtocolEnv
-from dedeucerl.core import TaskGenerator
-
-# Pick your skin
-skin = MealyEnv        # Mealy machine identification
-# skin = ProtocolEnv   # API reverse engineering
-
-generator = TaskGenerator(skin)
-```
-
-### Step 2: Configure Generation Parameters
-
-Each skin has specific parameters:
-
-```python
-# MealyEnv parameters
-split = generator.generate_split(
-    seeds=list(range(100)),   # 100 unique episodes
-    budget=25,                 # Queries allowed per episode
-    subset_name="test",        # Name this subset
-    n_states=5,                # Mealy: number of states
-    trap=True,                 # Include trap transitions
-)
-
-# ProtocolEnv parameters
-split = generator.generate_split(
-    seeds=list(range(50)),
-    budget=30,
-    subset_name="dev",
-    n_endpoints=4,             # Protocol: number of API endpoints
-    n_states=3,                # Protocol: number of API states
-)
-```
-
-### Step 3: Save and Load Splits
-
-```python
-# Save to JSON (for reproducibility)
-generator.save_split(split, "seeds/mealy_test.json")
-
-# Build HuggingFace Dataset from saved split
-dataset = generator.build_dataset(
-    split_path="seeds/mealy_test.json",
-    subset="test",
-    feedback=True,   # Enable counterexample feedback
-)
-
-print(f"Generated {len(dataset)} episodes")
-print(f"Example prompt: {dataset[0]['prompt'][0]['content'][:100]}...")
-```
-
-### Step 4: CLI Generator (Recommended)
-
-For larger releases and community benchmarks, prefer the CLI generator (it records the generation parameters in the output JSON and avoids embedding generation code in notebooks).
+> Note: `cliGame` is a repo-only helper and is not installed via `pip install dedeucerl`.
 
 ```bash
-# Inspect available parameters for a skin
-# (each skin exposes different knobs)
-dedeucerl-generate --skin mealy --show-skin-params --seeds 0 --budget 100 --no-trap
+python -m cliGame
+```
 
-dedeucerl-generate --skin protocol --show-skin-params --seeds 0 --budget 120 --no-trap
+```
+🎮 DedeuceRL Interactive Game
+Available skins: mealy, protocol, apienv, exprpolicy
 
-  dedeucerl-generate --skin apienv --show-skin-params --seeds 0 --budget 200 --no-trap
-  dedeucerl-generate --skin exprpolicy --show-skin-params --seeds 0 --budget 200 --no-trap
+Select skin [1-4]: 1
+Enter seed (int): 42
 
-# Example: 100-episode Mealy test split (4 states, budget 100, traps OFF)
+=== SYSTEM PROMPT ===
+You are identifying a hidden Mealy machine...
+
+=== YOUR TURN ===
+> act A
+{"output": 1, "budget_left": 24, "trap_hit": false}
+
+> act B
+{"output": 2, "budget_left": 23, "trap_hit": false}
+
+> submit_table {"n":3,"start":0,"trans":{...}}
+{"ok": true}
+```
+
+**Commands:** `:help` `:tools` `:prompt` `:state` `:quit`
+
+---
+
+## Generating Tasks
+
+<details>
+<summary><strong>CLI Generator (recommended)</strong></summary>
+
+```bash
+# Show available parameters for a skin
+dedeucerl-generate --skin mealy --show-skin-params --seeds 0 --budget 25
+
+# Generate 100-episode Mealy test split
 dedeucerl-generate \
   --skin mealy \
   --seeds 0-99 \
@@ -194,39 +200,44 @@ dedeucerl-generate \
   --budget 100 \
   --n-states 4 \
   --no-trap \
-  -o seeds/mealy_n4_b100_test.json
+  -o seeds/mealy_test.json
 
-# Example: 100-episode Protocol test split (5 endpoints, 4 states, budget 120, traps OFF)
+# Generate Protocol split
 dedeucerl-generate \
   --skin protocol \
   --seeds 0-99 \
-  --subset test \
   --budget 120 \
   --n-endpoints 5 \
   --n-states 4 \
-  --no-trap \
-  -o seeds/protocol_n4_e5_b120_test.json
-
-# Example: 100-episode APIEnv test split (full catalog, 7 states, budget 200, traps OFF)
-dedeucerl-generate \
-  --skin apienv \
-  --seeds 0-99 \
-  --subset test \
-  --budget 200 \
-  --n-endpoints 7 \
-  --n-states 7 \
-  --no-trap \
-  -o seeds/apienv_n7_e7_b200_test.json
+  -o seeds/protocol_test.json
 ```
 
-### Difficulty Scaling
+</details>
 
-| Parameter | Effect on Difficulty |
-|-----------|---------------------|
-| `n_states` | More states = harder identification |
-| `budget` | Lower budget = less room for error |
-| `trap=True` | Safety constraints add complexity |
-| `feedback=False` | No counterexamples = much harder |
+<details>
+<summary><strong>Python API</strong></summary>
+
+```python
+from dedeucerl.skins import MealyEnv
+from dedeucerl.core import TaskGenerator
+
+gen = TaskGenerator(MealyEnv)
+split = gen.generate_split(
+    seeds=list(range(100)),
+    budget=25,
+    subset_name="test",
+    n_states=5,
+    trap=True,
+)
+gen.save_split(split, "seeds/mealy_test.json")
+
+# Build HuggingFace Dataset
+dataset = gen.build_dataset("seeds/mealy_test.json", "test", feedback=True)
+```
+
+</details>
+
+**Pre-built splits:** [🤗 comfortably-dumb/DedeuceRL](https://huggingface.co/datasets/comfortably-dumb/DedeuceRL)
 
 ---
 
@@ -238,21 +249,20 @@ dedeucerl-generate \
 # Basic evaluation
 dedeucerl-eval \
   --skin mealy \
-  --split seeds/mealy_dev.json \
-  --subset dev \
+  --split seeds/mealy_smoke.json \
   --model openai:gpt-4o \
   --out results.jsonl
 
 # With all options
 dedeucerl-eval \
-  --skin protocol \
-  --split seeds/protocol_dev.json \
+  --skin apienv \
+  --split seeds/apienv_smoke.json \
   --model anthropic:claude-3-opus-20240229 \
   --rollouts 3 \
   --feedback \
   --temperature 0.0 \
   --verbose \
-  --out results/protocol_claude.jsonl
+  --out results/apienv_claude.jsonl
 ```
 
 ### Supported Model Specs
@@ -273,7 +283,7 @@ from dedeucerl.adapters import get_adapter
 
 # Setup
 generator = TaskGenerator(MealyEnv)
-dataset = generator.build_dataset("seeds/mealy_dev.json", "dev", feedback=True)
+dataset = generator.build_dataset("seeds/mealy_smoke.json", "smoke", feedback=True)
 rubric = make_rubric()
 env = MealyEnv(dataset=dataset, rubric=rubric, feedback=True, max_turns=30)
 
@@ -309,93 +319,96 @@ Output columns: `model`, `n_episodes`, `success_rate`, `trap_rate`, `avg_queries
 ## Hugging Face Dataset
 
 Public task splits (MIT-licensed) are available at:
-- `https://huggingface.co/datasets/comfortably-dumb/DedeuceRL`
+- [🤗 comfortably-dumb/DedeuceRL](https://huggingface.co/datasets/comfortably-dumb/DedeuceRL)
 
 ---
 
-## Guide: Training with Verifiers
+## Training with RL
 
-### Logging and Debugging
+DedeuceRL environments inherit from [`verifiers.StatefulToolEnv`](https://github.com/PrimeIntellect-ai/verifiers), making them directly compatible with RL training frameworks.
 
-DedeuceRL includes a small structured logging utility intended for *library users* embedding the environments in their own training/eval loops.
+### Quick Start with vf.RLTrainer
 
-- Logger helpers live in `dedeucerl/utils/logging.py` (e.g., `configure_logging()`, `log_episode_start()`).
-- The CLI tools intentionally use `print()` for predictable, copy-pastable terminal output.
+```bash
+# Install verifiers with RL support
+uv add 'verifiers[rl]'
 
-### Optional Type Helpers
+# Run training (create your own config based on verifiers docs)
+uv run vf-rl @ your-config.toml
+```
 
-The dataclasses in `dedeucerl/core/types.py` (`EpisodeState`, `ProbeResult`, `SubmitResult`) are optional, exported helpers for users who want structured types in custom loops. The built-in skins operate on `Dict[str, Any]` state for compatibility with `verifiers`.
+### Example Configuration
 
-DedeuceRL integrates directly with [PrimeIntellect's verifiers library](https://github.com/PrimeIntellect-ai/verifiers) for RL training.
+```toml
+# your-config.toml (example)
+model = "Qwen/Qwen3-4B-Instruct"
 
-### Basic Setup
+[env]
+path = "./your_env_module"
+
+[env.args]
+max_turns = 30
+
+[trainer.args]
+run_name = "dedeucerl-mealy"
+micro_batch_size = 4
+rollouts_per_example = 16
+batch_size = 1024
+max_steps = 500
+```
+
+### Creating the Environment Module
 
 ```python
+# your_env_module.py
+import verifiers as vf
 from dedeucerl.skins import MealyEnv
 from dedeucerl.core import TaskGenerator, make_rubric
 
-# Generate training data
-generator = TaskGenerator(MealyEnv)
-train_split = generator.generate_split(
-    seeds=list(range(1000)),  # 1000 training episodes
-    budget=25,
-    subset_name="train",
-    n_states=4,
-)
-generator.save_split(train_split, "seeds/mealy_train.json")
-
-# Build dataset
-train_dataset = generator.build_dataset("seeds/mealy_train.json", "train", feedback=True)
-
-# Create environment (inherits from verifiers.StatefulToolEnv)
-rubric = make_rubric()
-env = MealyEnv(
-    dataset=train_dataset,
-    rubric=rubric,
-    feedback=True,
-    max_turns=30,
-)
+def load_environment(split_path: str = "your_split.json") -> vf.Environment:
+    gen = TaskGenerator(MealyEnv)
+    dataset = gen.build_dataset(split_path, "train", feedback=True)
+    rubric = make_rubric()
+    return MealyEnv(dataset=dataset, rubric=rubric, feedback=True, max_turns=30)
 ```
 
-### Integration with GRPO/verl
+### Alternative Training Frameworks
 
-```python
-# The env is directly compatible with verifiers training loops
-from verifiers.trainers import GRPOTrainer  # Example
+DedeuceRL is also compatible with:
+- **[prime-rl](https://github.com/PrimeIntellect-ai/prime-rl)** — Async RL at scale with FSDP2 + vLLM
+- **[SkyRL](https://github.com/NovaSky-AI/SkyRL)** — [Verifiers integration](https://github.com/NovaSky-AI/SkyRL/tree/main/skyrl-train/integrations/verifiers)
+- **[Tinker](https://github.com/thinking-machines-lab/tinker-cookbook)** — [Verifiers recipes](https://github.com/thinking-machines-lab/tinker-cookbook/tree/main/tinker_cookbook/recipes/verifiers_rl)
 
-trainer = GRPOTrainer(
-    env=env,
-    model="your-model",
-    # ... other training config
-)
-trainer.train()
-```
-
-### Custom Reward Functions
+<details>
+<summary><strong>Custom reward functions</strong></summary>
 
 ```python
 from verifiers import Rubric, Parser
 
-def my_reward(completion, answer, state, parser):
-    """Custom reward: bonus for efficiency."""
+def efficiency_reward(completion, answer, state, parser):
+    """Reward efficiency: fewer queries = higher reward."""
     if not state.get("ok", False):
         return 0.0
     
     queries = state.get("queries_used", 0)
-    budget = 25
+    budget = state.get("budget_init", 25)
     efficiency = 1.0 - (queries / budget)
     trap_penalty = 0.5 if state.get("trap_hit", False) else 0.0
     
     return efficiency - trap_penalty
 
 custom_rubric = Rubric(
-    funcs=[my_reward],
+    funcs=[efficiency_reward],
     weights=[1.0],
     parser=Parser(extract_fn=lambda s: s),
 )
 
 env = MealyEnv(dataset=dataset, rubric=custom_rubric, feedback=True, max_turns=30)
 ```
+
+</details>
+
+See [verifiers training docs](https://docs.primeintellect.ai/verifiers/training) for complete setup instructions.
 
 ---
 
@@ -407,22 +420,17 @@ Run evaluations on a skin.
 
 ```bash
 dedeucerl-eval \
-  --skin mealy \              # Skin to use
-  --split seeds/dev.json \    # Path to split JSON
-  --subset dev \              # Subset name within split
-  --model openai:gpt-4o \     # Model spec (provider:model)
-  --rollouts 1 \              # Rollouts per episode
-  --out results.jsonl \       # Output file
-  --feedback \                # Enable counterexample feedback
-  --temperature 0.0 \         # Sampling temperature
-  --verbose                   # Verbose output
+  --skin mealy \
+  --split seeds/mealy_smoke.json \
+  --model openai:gpt-4o \
+  --rollouts 1 \
+  --out results.jsonl \
+  --feedback \
+  --temperature 0.0 \
+  --verbose
 ```
 
-**Supported model specs:**
-- `openai:gpt-4o`, `openai:gpt-4-turbo`, `openai:gpt-3.5-turbo`
-- `anthropic:claude-3-opus-20240229`, `anthropic:claude-3-sonnet-20240229`
-- `gemini:gemini-1.5-pro`, `gemini:gemini-1.5-flash`
-- `openrouter:<any-model>` (defaults to OpenRouter base URL; override via `OPENAI_BASE_URL`)
+**Supported model specs:** `openai:gpt-4o` · `anthropic:claude-3-opus-20240229` · `gemini:gemini-1.5-pro` · `openrouter:<model>`
 
 ### `dedeucerl-aggregate`
 
@@ -442,456 +450,64 @@ Validate installation.
 dedeucerl-selfcheck --verbose
 ```
 
----
+## Creating New Skins
 
-## Skins
+For detailed implementation guide, see **[docs/SKINS.md](docs/SKINS.md)**.
 
-### MealySkin (Mealy Machine Identification)
-
-The reference skin for active system identification. The agent must identify a hidden Mealy machine (finite-state transducer).
-
-**Hidden System:** Transition table `(state × symbol → next_state × output)`
-
-**Tools:**
-- `act(symbol: str)` - Execute symbol ('A', 'B', or 'C'), returns output and state info
-- `submit_table(table_json: str)` - Submit hypothesis as JSON
-
-**Hypothesis Schema:**
-```json
-{
-  "n": 3,
-  "start": 0,
-  "trans": {
-    "0": {"A": [1, 0], "B": [0, 1], "C": [2, 2]},
-    "1": {"A": [2, 1], "B": [1, 0], "C": [0, 2]},
-    "2": {"A": [0, 2], "B": [2, 1], "C": [1, 0]}
-  }
-}
-```
-
-**Features:**
-- Isomorphism checking (accepts equivalent state relabelings)
-- Counterexample generation (BFS-based shortest distinguishing trace)
-- Trap transitions (safety-critical states)
-- Guaranteed reachability and minimality in generated machines
-
-### ProtocolSkin (API Reverse Engineering)
-
-The agent must reverse-engineer a hidden REST API's state-dependent behavior.
-
-**Hidden System:** State machine representing valid API call sequences
-
-**Tools:**
-- `api_call(method: str, endpoint: str)` - Make API call, returns status and response
-- `submit_spec(spec_json: str)` - Submit API specification as JSON
-
-**Hypothesis Schema:**
-```json
-{
-  "n_states": 3,
-  "start": 0,
-  "transitions": {
-    "0": {
-      "/users": {"GET": [0, 200], "POST": [1, 201]},
-      "/items": {"GET": [1, 200]}
-    },
-    "1": {
-      "/users": {"GET": [1, 404], "POST": [0, 201]},
-      "/items": {"GET": [0, 200]}
-    }
-  }
-}
-```
-
-**Features:**
-- State-dependent endpoint behavior
-- HTTP status code simulation
-- Behavioral equivalence checking
-
-### APIEnv (Stateful SaaS API Reverse Engineering)
-
-A more realistic API identification task: operations are `(method, endpoint, variant)` and outputs include both an HTTP-like status code and a response schema tag.
-
-**Tools:**
-- `api_call(method: str, endpoint: str, variant: str)` - Probe the API
-- `submit_spec(spec_json: str)` - Submit a full state-dependent spec
-
-**Hypothesis Schema:**
-```json
-{
-  "n_states": 6,
-  "start": 0,
-  "transitions": {
-    "0": {
-      "/login": {"POST": {"valid": [1, 200, "AuthOk"], "invalid": [0, 401, "AuthFail"]}}
-    }
-  }
-}
-```
-
-### ExprPolicyEnv (Typed Policy DSL Debugging)
-
-Models a common real-world agent workflow: iterating on a buggy typed policy expression using compiler feedback and deterministic tests, then submitting a fix that generalizes to hidden cases.
-
-**Tools:**
-- `type_check(expr: str)` - Parse + type-check, returns structured diagnostics
-- `run_tests(expr: str, suite: str)` - Run deterministic public / hidden-preview suites
-- `submit(expr: str)` - Full hidden evaluation
-
-**Features:**
-- Hidden tests + optional counterexample feedback
-- Tool costs (CI is expensive) and `max_expr_len` constraints
-- Optional trap tokens (banned substrings)
-
-## Guide: Designing New Skins
-
-Creating a new skin involves 6 steps. Use `MealyEnv` as a reference implementation.
-
-### Step 1: Define Your Domain
-
-Decide on:
-- **Hidden System**: What structure is the agent trying to identify?
-- **Probe Action**: How does the agent query the system?
-- **Hypothesis Format**: What does a complete submission look like?
-- **Equivalence Check**: When are two hypotheses considered equivalent?
-
-| Skin | Hidden System | Probe | Hypothesis |
-|------|---------------|-------|------------|
-| Mealy | Transition table | Execute symbol | Full transition table |
-| Protocol | API state machine | HTTP request | State-dependent transition spec |
-| APIEnv | SaaS API workflow | HTTP request + variant | State-dependent transition spec |
-| ExprPolicyEnv | Typed policy DSL | Compile + run tests | Corrected expression |
-
-### Step 2: Create the Skin File
+<details>
+<summary><strong>Quick reference</strong></summary>
 
 ```python
 # dedeucerl/skins/myskin.py
-from __future__ import annotations
-import json
-from typing import Any, Dict, List
 from dedeucerl.core.env import HiddenSystemEnv
 from dedeucerl.core.config import SkinConfig
-from dedeucerl.utils.rng import get_rng
-
-# Configure skin behavior
-MY_CONFIG = SkinConfig(
-    isomorphism_check=True,    # Enable equivalence checking
-    trap_enabled=True,          # Include safety traps
-    default_budget=30,          # Default query budget
-    max_turns=64,               # Max episode turns
-    skin_name="myskin",
-    skin_version="1.0",
-)
 
 class MySkinEnv(HiddenSystemEnv):
-    """My custom skin for [domain description]."""
+    config = SkinConfig(skin_name="myskin", default_budget=30)
     
-    config = MY_CONFIG
+    def _configure_from_metadata(self, meta): ...  # Parse ground truth
+    def _get_start_state(self): ...                # Initial state  
+    def _get_tools(self): ...                      # [probe, submit]
     
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        # Initialize skin-specific state
-        self._ground_truth = None
-        self._trap_pairs = set()
-```
-
-### Step 3: Implement Required Abstract Methods
-
-```python
-    # REQUIRED: Parse episode metadata
-    def _configure_from_metadata(self, meta: Dict[str, Any]) -> None:
-        """Extract ground truth from episode metadata."""
-        self._ground_truth = meta.get("system")
-        self._trap_pairs = set(tuple(x) for x in meta.get("traps", []))
-    
-    # REQUIRED: Return starting state
-    def _get_start_state(self) -> Any:
-        """Return the initial state (usually 0)."""
-        return 0
-    
-    # REQUIRED: Return tool methods
-    def _get_tools(self) -> List:
-        """Return list of tool methods exposed to the agent."""
-        return [self.probe, self.submit]
-```
-
-### Step 4: Implement Tools
-
-Tools are methods that the LLM agent calls. They must:
-- Return JSON strings
-- Update internal state
-- Track budget and trap hits
-
-```python
-    def probe(self, action: str) -> str:
-        """Execute a probe action on the hidden system."""
-        state = self._state()  # Get episode state dict
-        
-        if state["done"]:
-            return self._episode_finished()
-
-        # Each tool call should consume budget (ends episode at 0).
-        if not self._consume_budget(1):
-            return self._budget_exhausted()
-        
-        # Execute action on hidden system
-        result = self._execute_on_hidden_system(action)
-        
-        # Check for traps
-        if self._is_trap(state["cs"], action):
-            state["trap_hit"] = True
-        
-        return json.dumps({
-            "result": result,
-            "budget_left": state["budget"],
-            "trap_hit": state["trap_hit"],
-            "queries_used": state["queries_used"],
-        })
-    
-    def submit(self, hypothesis_json: str) -> str:
-        """Submit a hypothesis about the hidden system."""
-        state = self._state()
-        
-        if state["done"]:
-            return self._episode_finished()
-
-        # Every submission attempt consumes budget.
-        if not self._consume_budget(self.config.submission_cost):
-            return self._budget_exhausted()
-
-        try:
-            hypothesis = json.loads(hypothesis_json)
-        except Exception:
-            return self._tool_error(error_invalid_json("hypothesis_json"), extra={"ok": False})
-
-        # Optional: pre-validate against your DomainSpec.hypothesis_schema.
-        # This provides consistent MALFORMED_HYPOTHESIS errors.
-        # (Build the schema from your skin's DomainSpec parameters)
-        schema = self.__class__.domain_spec(budget=state["budget_init"], trap=True).hypothesis_schema
-        validation_err = self._prevalidate_hypothesis(hypothesis, schema)
-        if validation_err is not None:
-            return self._tool_error(validation_err, extra={"ok": False})
-
-        # Check if hypothesis matches ground truth
-        ok = self._check_equivalence(hypothesis)
-
-        if ok:
-            state["ok"] = not state["trap_hit"]
-            state["done"] = True
-        # If incorrect, the episode continues (unless budget is exhausted).        
-        payload = {"ok": ok, "budget_left": state["budget"]}
-        if not ok and self.feedback_enabled:
-            payload["counterexample"] = self._generate_counterexample(hypothesis)
-        
-        return json.dumps(payload)
-```
-
-### Step 5: Implement Static Generation
-
-```python
     @staticmethod
-    def generate_system_static(
-        seed: int,
-        my_param: int = 5,  # Skin-specific parameters
-        trap: bool = True,
-        **kwargs,
-    ) -> Dict[str, Any]:
-        """Generate a random hidden system.
-        
-        This must be deterministic given the seed.
-        """
-        rng = get_rng(seed)  # Seeded RNG for reproducibility
-        
-        # Generate your hidden system...
-        system = generate_random_system(rng, my_param)
-        
-        # Generate traps if enabled
-        traps = generate_traps(rng, system) if trap else []
-        
-        return {
-            "system": system,
-            "traps": traps,
-        }
+    def generate_system_static(seed, **params): ...  # Deterministic generation
     
     @classmethod
-    def get_prompt_template(
-        cls,
-        obs: Dict[str, Any],
-        *,
-        feedback: bool = False,
-    ) -> List[Dict[str, str]]:
-        """Build system and user prompts for an episode."""
-        return [
-            {
-                "role": "system",
-                "content": "You are an agent identifying a hidden [system type]...\n"
-                           "Tools:\n- probe(action) -> result\n- submit(hypothesis) -> ok\n"
-            },
-            {
-                "role": "user", 
-                "content": f"OBSERVATION: {json.dumps(obs)}\nRespond only with tool calls."
-            },
-        ]
-
-    @classmethod
-    def domain_spec(cls, my_param: int = 5, budget: int = 25, trap: bool = True) -> "DomainSpec":
-        """Single source of truth for tools/observations.
-
-        `TaskGenerator` uses `domain_spec()` to build the observation shown to agents.
-        If you populate `params`, `dedeucerl-generate` can expose these without
-        hardcoding CLI flags.
-        """
-        # See `dedeucerl/core/domain_spec.py` for DomainSpec/ParamSpec
-        ...
+    def domain_spec(cls, **params): ...  # Tool/observation schemas
 ```
 
-### Step 6: Register and Test
+Register in `dedeucerl/skins/__init__.py` and run `dedeucerl-selfcheck --verbose`.
 
-```python
-# dedeucerl/skins/__init__.py
-from .myskin import MySkinEnv
-
-SKIN_REGISTRY = {
-    "mealy": MealyEnv,
-    "protocol": ProtocolEnv,
-    "myskin": MySkinEnv,  # Add your skin
-}
-
-__all__ = [..., "MySkinEnv"]
-```
-
-Test your skin:
-
-```bash
-# Quick test
-python -c "
-from dedeucerl.skins import MySkinEnv
-print(MySkinEnv.generate_system_static(seed=42, my_param=5))
-"
-
-# Full test
-python -c "
-from dedeucerl.skins import MySkinEnv
-from dedeucerl.core import TaskGenerator
-
-gen = TaskGenerator(MySkinEnv)
-split = gen.generate_split(seeds=[0,1,2], budget=20, subset_name='test', my_param=5)
-print(f'Generated {len(split[\"test\"][\"items\"])} episodes')
-"
-```
+</details>
 
 ---
 
 ## Metrics
 
-DedeuceRL tracks the following metrics:
-
 | Metric | Description |
 |--------|-------------|
-| `success` | Binary: 1 if correct submission without trap, 0 otherwise |
-| `queries_used` | Total probe queries consumed |
-| `trap_hit` | Binary: 1 if a trap transition was triggered |
+| `success` | 1 if correct submission without trap hit, else 0 |
+| `queries_used` | Total probe + submit calls consumed |
+| `trap_hit` | 1 if dangerous state triggered |
 | `budget_remaining` | Queries left at episode end |
 | `reward` | `1.0 - 0.01 * queries_used` if successful, else 0 |
 
----
-
-## Split JSON Format
-
-Evaluation splits are JSON files with the following structure:
-
-```json
-{
-  "dev": {
-    "budget": 25,
-    "n_states": 3,
-    "trap": true,
-    "items": [
-      {
-        "seed": 0,
-        "system": {
-          "table": {"n": 3, "start": 0, "trans": {...}},
-          "trap_pairs": [[0, "A"]]
-        }
-      },
-      {"seed": 1, "system": {...}},
-      ...
-    ]
-  },
-  "test": {
-    "budget": 40,
-    "n_states": 5,
-    "trap": true,
-    "items": [...]
-  }
-}
-```
-
----
-
-## Integration with verifiers
-
-DedeuceRL is built on top of [PrimeIntellect's verifiers library](https://github.com/PrimeIntellect-ai/verifiers). The `HiddenSystemEnv` class inherits from `StatefulToolEnv`, enabling:
-
-- Direct compatibility with `verifiers` evaluation pipelines
-- Integration with RL training frameworks (GRPO, verl)
-- Async episode execution
-
-```python
-from verifiers import Rubric
-from dedeucerl.skins import MealyEnv
-
-# Use with verifiers evaluation
-env = MealyEnv(dataset=dataset, rubric=rubric)
-# ... standard verifiers workflow
-```
-
----
-
-## Project Structure
+<details>
+<summary><strong>Project structure</strong></summary>
 
 ```
 DedeuceRL/
 ├── dedeucerl/
-│   ├── __init__.py
-│   ├── core/
-│   │   ├── __init__.py
-│   │   ├── env.py              # HiddenSystemEnv base class
-│   │   ├── config.py           # SkinConfig dataclass
-│   │   ├── types.py            # ProbeResult, SubmitResult, EpisodeState
-│   │   ├── rubric.py           # Scoring functions
-│   │   └── task_generator.py   # TaskGenerator for datasets
-│   ├── skins/
-│   │   ├── __init__.py         # SKIN_REGISTRY
-│   │   ├── mealy.py            # MealyEnv implementation
-│   │   ├── protocol.py         # ProtocolEnv implementation
-│   │   ├── apienv.py           # APIEnv implementation
-│   │   └── exprpolicy.py       # ExprPolicyEnv implementation
-│   ├── adapters/
-│   │   ├── __init__.py
-│   │   ├── base.py             # BaseAdapter, ModelReply
-│   │   ├── openai.py
-│   │   ├── anthropic.py
-│   │   └── gemini.py
-│   ├── cli/
-│   │   ├── eval.py             # dedeucerl-eval
-│   │   ├── generate.py         # dedeucerl-generate
-│   │   ├── aggregate.py        # dedeucerl-aggregate
-│   │   └── selfcheck.py        # dedeucerl-selfcheck
-│   └── utils/
-│       └── rng.py              # Seeded RNG utilities
-├── seeds/                      # Evaluation splits
-│   ├── mealy_dev.json
-│   └── mealy_test.json
-├── tests/
-│   ├── test_core.py
-│   ├── test_mealy.py
-│   └── test_universal_skins.py
-├── examples/
-│   └── basic_eval.py
-├── pyproject.toml
-└── README.md
+│   ├── core/       # HiddenSystemEnv, TaskGenerator, rubric
+│   ├── skins/      # MealyEnv, ProtocolEnv, APIEnv, ExprPolicyEnv
+│   ├── adapters/   # OpenAI, Anthropic, Gemini
+│   ├── cli/        # dedeucerl-eval, dedeucerl-generate, etc.
+│   └── utils/      # RNG utilities
+├── seeds/          # Pre-built evaluation splits
+└── tests/          # pytest suite
 ```
+
+</details>
 
 ---
 
@@ -929,21 +545,19 @@ MIT License. See [LICENSE](LICENSE) for details.
 
 ## Citation
 
-Citation metadata lives in `CITATION.cff` (GitHub will also show it in the sidebar under “Cite this repository”).
+```bibtex
+@software{dedeucerl2026,
+  title = {DedeuceRL: A Modular Framework for Active System Identification Benchmarks},
+  author = {Vedansh},
+  year = {2026},
+  url = {https://github.com/AashVed/DedeuceRL}
+}
+```
+
+See [`CITATION.cff`](CITATION.cff) for full metadata.
 
 ---
 
 ## Acknowledgments
 
-DedeuceRL builds on concepts from:
-- DedeuceBench - Original Mealy machine identification benchmark
-- [verifiers](https://github.com/PrimeIntellect-ai/verifiers) - PrimeIntellect's RL verification library
-- Active automata learning (Angluin's L* algorithm)
-
----
-
-## Roadmap Notes
-
-- **SUL adapter:** `core/automata.py` already supports the needed adapter pattern via `get_transition(state, action) -> (next_state, output)` callables. A formal SUL interface is optional; add only if multiple skins start duplicating glue.
-- **Conformance testing:** W/Wp-method style conformance testing typically assumes a `reset()` capability (or equivalent) so tests can be run from a known start state.
-- **Reset tool:** Not planned for v0 because models already struggle on basic Mealy identification; adding reset/actions expands the action space and can make learning harder. Revisit if the repo sees broad adoption.
+Built on: [verifiers](https://github.com/PrimeIntellect-ai/verifiers) · [Angluin's L* algorithm](https://doi.org/10.1016/0890-5401(87)90052-6) · DedeuceBench

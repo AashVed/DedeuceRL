@@ -3,8 +3,8 @@ message: "If you use this software, please cite it using these metadata."
 title: "DedeuceRL: A Modular Framework for Active System Identification Benchmarks"
 authors:
   - name: "Vedansh"
-version: 1.0.2
-date-released: "2026-01-22"
+version: 1.0.3
+date-released: "2026-01-29"
 license: "MIT"
 repository-code: "https://github.com/AashVed/DedeuceRL"
 identifiers:
