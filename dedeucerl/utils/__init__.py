@@ -26,6 +26,7 @@ from .errors import (
     error_skin_not_found,
     error_split_not_found,
 )
+from .episodes import parse_index_spec, parse_shard, apply_shard, compute_split_hash
 
 __all__ = [
     # RNG
@@ -53,4 +54,9 @@ __all__ = [
     "error_malformed_hypothesis",
     "error_skin_not_found",
     "error_split_not_found",
+    # Episodes
+    "parse_index_spec",
+    "parse_shard",
+    "apply_shard",
+    "compute_split_hash",
 ]

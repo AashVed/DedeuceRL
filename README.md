@@ -13,6 +13,7 @@
 pip install dedeucerl
 dedeucerl-generate --skin mealy --seeds 0-4 --budget 25 --n-states 3 -o tasks.json
 dedeucerl-eval --skin mealy --split tasks.json --model heuristic:none --out results.jsonl
+dedeucerl-eval-parallel --jobs 4 --out results.jsonl --skin mealy --split tasks.json --model heuristic:none  # merged output
 ```
 
 ---
@@ -283,7 +284,7 @@ from dedeucerl.adapters import get_adapter
 
 # Setup
 generator = TaskGenerator(MealyEnv)
-dataset = generator.build_dataset("seeds/mealy_smoke.json", "smoke", feedback=True)
+dataset = generator.build_dataset("seeds/mealy_smoke.json", "dev", feedback=True)
 rubric = make_rubric()
 env = MealyEnv(dataset=dataset, rubric=rubric, feedback=True, max_turns=30)
 
@@ -431,6 +432,39 @@ dedeucerl-eval \
 ```
 
 **Supported model specs:** `openai:gpt-4o` · `anthropic:claude-3-opus-20240229` · `gemini:gemini-1.5-pro` · `openrouter:<model>`
+
+**Episode selection + sharding:**
+
+```bash
+# Run only specific episodes
+dedeucerl-eval --skin mealy --split seeds/mealy_smoke.json --episodes 0-4,9
+
+# Run shard 1 of 4 (0-based shard index)
+dedeucerl-eval --skin mealy --split seeds/mealy_smoke.json --shard 1/4
+```
+
+**Resume runs (split-aware):**
+
+```bash
+dedeucerl-eval --skin mealy --split seeds/mealy_smoke.json --resume --out results.jsonl
+```
+
+Resume is safe across restarts because each result line includes a `split_hash` derived from the split file + subset.
+
+### `dedeucerl-eval-parallel`
+
+Run shard-parallel evals and merge results.
+
+```bash
+dedeucerl-eval-parallel \
+  --jobs 4 \
+  --out results.jsonl \
+  --skin mealy \
+  --split seeds/mealy_smoke.json \
+  --model openai:gpt-4o
+```
+
+This writes a single merged JSONL to `--out`. Per-shard part files are deleted by default (use `--keep-parts` to keep them). You can then run `dedeucerl-aggregate results.jsonl` as usual.
 
 ### `dedeucerl-aggregate`
 

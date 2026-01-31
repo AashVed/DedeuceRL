@@ -1,5 +1,5 @@
 {
-  "apienv_smoke": {
+  "dev": {
     "budget": 100,
     "items": [
       {
@@ -282,10 +282,1134 @@
           },
           "trap_calls": []
         }
+      },
+      {
+        "seed": 43,
+        "system": {
+          "spec": {
+            "n_states": 4,
+            "start": 0,
+            "endpoints": [
+              "/login",
+              "/logout",
+              "/verify_email",
+              "/select_org"
+            ],
+            "methods": [
+              "GET",
+              "POST",
+              "DELETE"
+            ],
+            "variants": {
+              "/login": {
+                "POST": [
+                  "valid",
+                  "invalid"
+                ]
+              },
+              "/logout": {
+                "POST": [
+                  "logout"
+                ]
+              },
+              "/verify_email": {
+                "POST": [
+                  "code_ok",
+                  "code_bad"
+                ]
+              },
+              "/select_org": {
+                "POST": [
+                  "orgA",
+                  "orgB",
+                  "invalid"
+                ]
+              }
+            },
+            "transitions": {
+              "0": {
+                "/login": {
+                  "POST": {
+                    "valid": [
+                      1,
+                      200,
+                      "AuthOk"
+                    ],
+                    "invalid": [
+                      0,
+                      401,
+                      "AuthFail"
+                    ]
+                  }
+                },
+                "/logout": {
+                  "POST": {
+                    "logout": [
+                      0,
+                      401,
+                      "NeedAuth"
+                    ]
+                  }
+                },
+                "/verify_email": {
+                  "POST": {
+                    "code_ok": [
+                      0,
+                      401,
+                      "NeedAuth"
+                    ],
+                    "code_bad": [
+                      0,
+                      401,
+                      "NeedAuth"
+                    ]
+                  }
+                },
+                "/select_org": {
+                  "POST": {
+                    "orgA": [
+                      0,
+                      401,
+                      "NeedAuth"
+                    ],
+                    "orgB": [
+                      0,
+                      401,
+                      "NeedAuth"
+                    ],
+                    "invalid": [
+                      0,
+                      401,
+                      "NeedAuth"
+                    ]
+                  }
+                }
+              },
+              "1": {
+                "/login": {
+                  "POST": {
+                    "valid": [
+                      1,
+                      200,
+                      "AlreadyAuthed"
+                    ],
+                    "invalid": [
+                      1,
+                      401,
+                      "AuthFail"
+                    ]
+                  }
+                },
+                "/logout": {
+                  "POST": {
+                    "logout": [
+                      0,
+                      200,
+                      "LoggedOut"
+                    ]
+                  }
+                },
+                "/verify_email": {
+                  "POST": {
+                    "code_ok": [
+                      2,
+                      200,
+                      "AlreadyVerified"
+                    ],
+                    "code_bad": [
+                      1,
+                      403,
+                      "NeedVerify"
+                    ]
+                  }
+                },
+                "/select_org": {
+                  "POST": {
+                    "orgA": [
+                      1,
+                      403,
+                      "NeedVerify"
+                    ],
+                    "orgB": [
+                      1,
+                      403,
+                      "NeedVerify"
+                    ],
+                    "invalid": [
+                      1,
+                      403,
+                      "NeedVerify"
+                    ]
+                  }
+                }
+              },
+              "2": {
+                "/login": {
+                  "POST": {
+                    "valid": [
+                      2,
+                      200,
+                      "AlreadyAuthed"
+                    ],
+                    "invalid": [
+                      2,
+                      401,
+                      "AuthFail"
+                    ]
+                  }
+                },
+                "/logout": {
+                  "POST": {
+                    "logout": [
+                      0,
+                      200,
+                      "LoggedOut"
+                    ]
+                  }
+                },
+                "/verify_email": {
+                  "POST": {
+                    "code_ok": [
+                      2,
+                      200,
+                      "AlreadyVerified"
+                    ],
+                    "code_bad": [
+                      2,
+                      200,
+                      "AlreadyVerified"
+                    ]
+                  }
+                },
+                "/select_org": {
+                  "POST": {
+                    "orgA": [
+                      3,
+                      200,
+                      "OrgSelectedA"
+                    ],
+                    "orgB": [
+                      2,
+                      200,
+                      "OrgSelectedB"
+                    ],
+                    "invalid": [
+                      2,
+                      422,
+                      "BadOrg"
+                    ]
+                  }
+                }
+              },
+              "3": {
+                "/login": {
+                  "POST": {
+                    "valid": [
+                      3,
+                      200,
+                      "AlreadyAuthed"
+                    ],
+                    "invalid": [
+                      3,
+                      401,
+                      "AuthFail"
+                    ]
+                  }
+                },
+                "/logout": {
+                  "POST": {
+                    "logout": [
+                      0,
+                      200,
+                      "LoggedOut"
+                    ]
+                  }
+                },
+                "/verify_email": {
+                  "POST": {
+                    "code_ok": [
+                      3,
+                      200,
+                      "AlreadyVerified"
+                    ],
+                    "code_bad": [
+                      3,
+                      200,
+                      "AlreadyVerified"
+                    ]
+                  }
+                },
+                "/select_org": {
+                  "POST": {
+                    "orgA": [
+                      3,
+                      200,
+                      "OrgSelectedA"
+                    ],
+                    "orgB": [
+                      2,
+                      200,
+                      "OrgSelectedB"
+                    ],
+                    "invalid": [
+                      3,
+                      422,
+                      "BadOrg"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "trap_calls": []
+        }
+      },
+      {
+        "seed": 44,
+        "system": {
+          "spec": {
+            "n_states": 4,
+            "start": 0,
+            "endpoints": [
+              "/login",
+              "/logout",
+              "/verify_email",
+              "/select_org"
+            ],
+            "methods": [
+              "GET",
+              "POST",
+              "DELETE"
+            ],
+            "variants": {
+              "/login": {
+                "POST": [
+                  "valid",
+                  "invalid"
+                ]
+              },
+              "/logout": {
+                "POST": [
+                  "logout"
+                ]
+              },
+              "/verify_email": {
+                "POST": [
+                  "code_ok",
+                  "code_bad"
+                ]
+              },
+              "/select_org": {
+                "POST": [
+                  "orgA",
+                  "orgB",
+                  "invalid"
+                ]
+              }
+            },
+            "transitions": {
+              "0": {
+                "/login": {
+                  "POST": {
+                    "valid": [
+                      1,
+                      200,
+                      "AuthOk"
+                    ],
+                    "invalid": [
+                      0,
+                      401,
+                      "AuthFail"
+                    ]
+                  }
+                },
+                "/logout": {
+                  "POST": {
+                    "logout": [
+                      0,
+                      401,
+                      "NeedAuth"
+                    ]
+                  }
+                },
+                "/verify_email": {
+                  "POST": {
+                    "code_ok": [
+                      0,
+                      401,
+                      "NeedAuth"
+                    ],
+                    "code_bad": [
+                      0,
+                      401,
+                      "NeedAuth"
+                    ]
+                  }
+                },
+                "/select_org": {
+                  "POST": {
+                    "orgA": [
+                      0,
+                      401,
+                      "NeedAuth"
+                    ],
+                    "orgB": [
+                      0,
+                      401,
+                      "NeedAuth"
+                    ],
+                    "invalid": [
+                      0,
+                      401,
+                      "NeedAuth"
+                    ]
+                  }
+                }
+              },
+              "1": {
+                "/login": {
+                  "POST": {
+                    "valid": [
+                      1,
+                      200,
+                      "AlreadyAuthed"
+                    ],
+                    "invalid": [
+                      1,
+                      401,
+                      "AuthFail"
+                    ]
+                  }
+                },
+                "/logout": {
+                  "POST": {
+                    "logout": [
+                      0,
+                      200,
+                      "LoggedOut"
+                    ]
+                  }
+                },
+                "/verify_email": {
+                  "POST": {
+                    "code_ok": [
+                      2,
+                      200,
+                      "AlreadyVerified"
+                    ],
+                    "code_bad": [
+                      1,
+                      403,
+                      "NeedVerify"
+                    ]
+                  }
+                },
+                "/select_org": {
+                  "POST": {
+                    "orgA": [
+                      1,
+                      403,
+                      "NeedVerify"
+                    ],
+                    "orgB": [
+                      1,
+                      403,
+                      "NeedVerify"
+                    ],
+                    "invalid": [
+                      1,
+                      403,
+                      "NeedVerify"
+                    ]
+                  }
+                }
+              },
+              "2": {
+                "/login": {
+                  "POST": {
+                    "valid": [
+                      2,
+                      200,
+                      "AlreadyAuthed"
+                    ],
+                    "invalid": [
+                      2,
+                      401,
+                      "AuthFail"
+                    ]
+                  }
+                },
+                "/logout": {
+                  "POST": {
+                    "logout": [
+                      0,
+                      200,
+                      "LoggedOut"
+                    ]
+                  }
+                },
+                "/verify_email": {
+                  "POST": {
+                    "code_ok": [
+                      2,
+                      200,
+                      "AlreadyVerified"
+                    ],
+                    "code_bad": [
+                      2,
+                      200,
+                      "AlreadyVerified"
+                    ]
+                  }
+                },
+                "/select_org": {
+                  "POST": {
+                    "orgA": [
+                      3,
+                      200,
+                      "OrgSelectedA"
+                    ],
+                    "orgB": [
+                      2,
+                      200,
+                      "OrgSelectedB"
+                    ],
+                    "invalid": [
+                      2,
+                      422,
+                      "BadOrg"
+                    ]
+                  }
+                }
+              },
+              "3": {
+                "/login": {
+                  "POST": {
+                    "valid": [
+                      3,
+                      200,
+                      "AlreadyAuthed"
+                    ],
+                    "invalid": [
+                      3,
+                      401,
+                      "AuthFail"
+                    ]
+                  }
+                },
+                "/logout": {
+                  "POST": {
+                    "logout": [
+                      0,
+                      200,
+                      "LoggedOut"
+                    ]
+                  }
+                },
+                "/verify_email": {
+                  "POST": {
+                    "code_ok": [
+                      3,
+                      200,
+                      "AlreadyVerified"
+                    ],
+                    "code_bad": [
+                      3,
+                      200,
+                      "AlreadyVerified"
+                    ]
+                  }
+                },
+                "/select_org": {
+                  "POST": {
+                    "orgA": [
+                      3,
+                      200,
+                      "OrgSelectedA"
+                    ],
+                    "orgB": [
+                      2,
+                      200,
+                      "OrgSelectedB"
+                    ],
+                    "invalid": [
+                      3,
+                      422,
+                      "BadOrg"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "trap_calls": []
+        }
+      },
+      {
+        "seed": 45,
+        "system": {
+          "spec": {
+            "n_states": 4,
+            "start": 0,
+            "endpoints": [
+              "/login",
+              "/logout",
+              "/verify_email",
+              "/select_org"
+            ],
+            "methods": [
+              "GET",
+              "POST",
+              "DELETE"
+            ],
+            "variants": {
+              "/login": {
+                "POST": [
+                  "valid",
+                  "invalid"
+                ]
+              },
+              "/logout": {
+                "POST": [
+                  "logout"
+                ]
+              },
+              "/verify_email": {
+                "POST": [
+                  "code_ok",
+                  "code_bad"
+                ]
+              },
+              "/select_org": {
+                "POST": [
+                  "orgA",
+                  "orgB",
+                  "invalid"
+                ]
+              }
+            },
+            "transitions": {
+              "0": {
+                "/login": {
+                  "POST": {
+                    "valid": [
+                      1,
+                      200,
+                      "AuthOk"
+                    ],
+                    "invalid": [
+                      0,
+                      401,
+                      "AuthFail"
+                    ]
+                  }
+                },
+                "/logout": {
+                  "POST": {
+                    "logout": [
+                      0,
+                      401,
+                      "NeedAuth"
+                    ]
+                  }
+                },
+                "/verify_email": {
+                  "POST": {
+                    "code_ok": [
+                      0,
+                      401,
+                      "NeedAuth"
+                    ],
+                    "code_bad": [
+                      0,
+                      401,
+                      "NeedAuth"
+                    ]
+                  }
+                },
+                "/select_org": {
+                  "POST": {
+                    "orgA": [
+                      0,
+                      401,
+                      "NeedAuth"
+                    ],
+                    "orgB": [
+                      0,
+                      401,
+                      "NeedAuth"
+                    ],
+                    "invalid": [
+                      0,
+                      401,
+                      "NeedAuth"
+                    ]
+                  }
+                }
+              },
+              "1": {
+                "/login": {
+                  "POST": {
+                    "valid": [
+                      1,
+                      200,
+                      "AlreadyAuthed"
+                    ],
+                    "invalid": [
+                      1,
+                      401,
+                      "AuthFail"
+                    ]
+                  }
+                },
+                "/logout": {
+                  "POST": {
+                    "logout": [
+                      0,
+                      200,
+                      "LoggedOut"
+                    ]
+                  }
+                },
+                "/verify_email": {
+                  "POST": {
+                    "code_ok": [
+                      2,
+                      200,
+                      "AlreadyVerified"
+                    ],
+                    "code_bad": [
+                      1,
+                      403,
+                      "NeedVerify"
+                    ]
+                  }
+                },
+                "/select_org": {
+                  "POST": {
+                    "orgA": [
+                      1,
+                      403,
+                      "NeedVerify"
+                    ],
+                    "orgB": [
+                      1,
+                      403,
+                      "NeedVerify"
+                    ],
+                    "invalid": [
+                      1,
+                      403,
+                      "NeedVerify"
+                    ]
+                  }
+                }
+              },
+              "2": {
+                "/login": {
+                  "POST": {
+                    "valid": [
+                      2,
+                      200,
+                      "AlreadyAuthed"
+                    ],
+                    "invalid": [
+                      2,
+                      401,
+                      "AuthFail"
+                    ]
+                  }
+                },
+                "/logout": {
+                  "POST": {
+                    "logout": [
+                      0,
+                      200,
+                      "LoggedOut"
+                    ]
+                  }
+                },
+                "/verify_email": {
+                  "POST": {
+                    "code_ok": [
+                      2,
+                      200,
+                      "AlreadyVerified"
+                    ],
+                    "code_bad": [
+                      2,
+                      200,
+                      "AlreadyVerified"
+                    ]
+                  }
+                },
+                "/select_org": {
+                  "POST": {
+                    "orgA": [
+                      3,
+                      200,
+                      "OrgSelectedA"
+                    ],
+                    "orgB": [
+                      2,
+                      200,
+                      "OrgSelectedB"
+                    ],
+                    "invalid": [
+                      2,
+                      422,
+                      "BadOrg"
+                    ]
+                  }
+                }
+              },
+              "3": {
+                "/login": {
+                  "POST": {
+                    "valid": [
+                      3,
+                      200,
+                      "AlreadyAuthed"
+                    ],
+                    "invalid": [
+                      3,
+                      401,
+                      "AuthFail"
+                    ]
+                  }
+                },
+                "/logout": {
+                  "POST": {
+                    "logout": [
+                      0,
+                      200,
+                      "LoggedOut"
+                    ]
+                  }
+                },
+                "/verify_email": {
+                  "POST": {
+                    "code_ok": [
+                      3,
+                      200,
+                      "AlreadyVerified"
+                    ],
+                    "code_bad": [
+                      3,
+                      200,
+                      "AlreadyVerified"
+                    ]
+                  }
+                },
+                "/select_org": {
+                  "POST": {
+                    "orgA": [
+                      3,
+                      200,
+                      "OrgSelectedA"
+                    ],
+                    "orgB": [
+                      2,
+                      200,
+                      "OrgSelectedB"
+                    ],
+                    "invalid": [
+                      3,
+                      422,
+                      "BadOrg"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "trap_calls": []
+        }
+      },
+      {
+        "seed": 46,
+        "system": {
+          "spec": {
+            "n_states": 4,
+            "start": 0,
+            "endpoints": [
+              "/login",
+              "/logout",
+              "/verify_email",
+              "/select_org"
+            ],
+            "methods": [
+              "GET",
+              "POST",
+              "DELETE"
+            ],
+            "variants": {
+              "/login": {
+                "POST": [
+                  "valid",
+                  "invalid"
+                ]
+              },
+              "/logout": {
+                "POST": [
+                  "logout"
+                ]
+              },
+              "/verify_email": {
+                "POST": [
+                  "code_ok",
+                  "code_bad"
+                ]
+              },
+              "/select_org": {
+                "POST": [
+                  "orgA",
+                  "orgB",
+                  "invalid"
+                ]
+              }
+            },
+            "transitions": {
+              "0": {
+                "/login": {
+                  "POST": {
+                    "valid": [
+                      1,
+                      200,
+                      "AuthOk"
+                    ],
+                    "invalid": [
+                      0,
+                      401,
+                      "AuthFail"
+                    ]
+                  }
+                },
+                "/logout": {
+                  "POST": {
+                    "logout": [
+                      0,
+                      401,
+                      "NeedAuth"
+                    ]
+                  }
+                },
+                "/verify_email": {
+                  "POST": {
+                    "code_ok": [
+                      0,
+                      401,
+                      "NeedAuth"
+                    ],
+                    "code_bad": [
+                      0,
+                      401,
+                      "NeedAuth"
+                    ]
+                  }
+                },
+                "/select_org": {
+                  "POST": {
+                    "orgA": [
+                      0,
+                      401,
+                      "NeedAuth"
+                    ],
+                    "orgB": [
+                      0,
+                      401,
+                      "NeedAuth"
+                    ],
+                    "invalid": [
+                      0,
+                      401,
+                      "NeedAuth"
+                    ]
+                  }
+                }
+              },
+              "1": {
+                "/login": {
+                  "POST": {
+                    "valid": [
+                      1,
+                      200,
+                      "AlreadyAuthed"
+                    ],
+                    "invalid": [
+                      1,
+                      401,
+                      "AuthFail"
+                    ]
+                  }
+                },
+                "/logout": {
+                  "POST": {
+                    "logout": [
+                      0,
+                      200,
+                      "LoggedOut"
+                    ]
+                  }
+                },
+                "/verify_email": {
+                  "POST": {
+                    "code_ok": [
+                      2,
+                      200,
+                      "AlreadyVerified"
+                    ],
+                    "code_bad": [
+                      1,
+                      403,
+                      "NeedVerify"
+                    ]
+                  }
+                },
+                "/select_org": {
+                  "POST": {
+                    "orgA": [
+                      1,
+                      403,
+                      "NeedVerify"
+                    ],
+                    "orgB": [
+                      1,
+                      403,
+                      "NeedVerify"
+                    ],
+                    "invalid": [
+                      1,
+                      403,
+                      "NeedVerify"
+                    ]
+                  }
+                }
+              },
+              "2": {
+                "/login": {
+                  "POST": {
+                    "valid": [
+                      2,
+                      200,
+                      "AlreadyAuthed"
+                    ],
+                    "invalid": [
+                      2,
+                      401,
+                      "AuthFail"
+                    ]
+                  }
+                },
+                "/logout": {
+                  "POST": {
+                    "logout": [
+                      0,
+                      200,
+                      "LoggedOut"
+                    ]
+                  }
+                },
+                "/verify_email": {
+                  "POST": {
+                    "code_ok": [
+                      2,
+                      200,
+                      "AlreadyVerified"
+                    ],
+                    "code_bad": [
+                      2,
+                      200,
+                      "AlreadyVerified"
+                    ]
+                  }
+                },
+                "/select_org": {
+                  "POST": {
+                    "orgA": [
+                      3,
+                      200,
+                      "OrgSelectedA"
+                    ],
+                    "orgB": [
+                      2,
+                      200,
+                      "OrgSelectedB"
+                    ],
+                    "invalid": [
+                      2,
+                      422,
+                      "BadOrg"
+                    ]
+                  }
+                }
+              },
+              "3": {
+                "/login": {
+                  "POST": {
+                    "valid": [
+                      3,
+                      200,
+                      "AlreadyAuthed"
+                    ],
+                    "invalid": [
+                      3,
+                      401,
+                      "AuthFail"
+                    ]
+                  }
+                },
+                "/logout": {
+                  "POST": {
+                    "logout": [
+                      0,
+                      200,
+                      "LoggedOut"
+                    ]
+                  }
+                },
+                "/verify_email": {
+                  "POST": {
+                    "code_ok": [
+                      3,
+                      200,
+                      "AlreadyVerified"
+                    ],
+                    "code_bad": [
+                      3,
+                      200,
+                      "AlreadyVerified"
+                    ]
+                  }
+                },
+                "/select_org": {
+                  "POST": {
+                    "orgA": [
+                      3,
+                      200,
+                      "OrgSelectedA"
+                    ],
+                    "orgB": [
+                      2,
+                      200,
+                      "OrgSelectedB"
+                    ],
+                    "invalid": [
+                      3,
+                      422,
+                      "BadOrg"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "trap_calls": []
+        }
       }
     ],
+    "trap": false,
     "n_states": 4,
-    "n_endpoints": 4,
-    "trap": false
+    "n_endpoints": 4
   }
 }
