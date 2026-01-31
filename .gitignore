@@ -75,6 +75,7 @@ HF_DATA/
 *.tmp
 *.temp
 .cache/
+*.log
 
 # Documentation build
 docs/_build/

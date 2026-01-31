@@ -1,6 +1,6 @@
 [project]
 name = "dedeucerl"
-version = "1.0.3"
+version = "1.0.4"
 description = "A modular framework for active system identification benchmarks"
 readme = "README.md"
 license = {file = "LICENSE"}
@@ -64,6 +64,7 @@ dev = [
 
 [project.scripts]
 dedeucerl-eval = "dedeucerl.cli.eval:main"
+dedeucerl-eval-parallel = "dedeucerl.cli.eval_parallel:main"
 dedeucerl-generate = "dedeucerl.cli.generate:main"
 dedeucerl-aggregate = "dedeucerl.cli.aggregate:main"
 dedeucerl-selfcheck = "dedeucerl.cli.selfcheck:main"

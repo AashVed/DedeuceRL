@@ -28,4 +28,15 @@ def selfcheck_main() -> None:
     main()
 
 
-__all__ = ["eval_main", "generate_main", "aggregate_main", "selfcheck_main"]
+def eval_parallel_main() -> None:
+    from .eval_parallel import main
+
+    main()
+
+__all__ = [
+    "eval_main",
+    "generate_main",
+    "aggregate_main",
+    "selfcheck_main",
+    "eval_parallel_main",
+]

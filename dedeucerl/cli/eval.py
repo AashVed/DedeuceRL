@@ -18,6 +18,10 @@ from dedeucerl.utils import (
     error_invalid_argument,
     error_invalid_json,
     error_unknown_tool,
+    parse_index_spec,
+    parse_shard,
+    apply_shard,
+    compute_split_hash,
 )
 
 
@@ -218,10 +222,32 @@ def parse_args() -> argparse.Namespace:
         help="Number of rollouts per episode.",
     )
     parser.add_argument(
+        "--episodes",
+        default=None,
+        type=str,
+        help="Episode indices to run (e.g., '0-9,15,20-30'). Defaults to all.",
+    )
+    parser.add_argument(
+        "--shard",
+        default=None,
+        type=str,
+        help="Shard spec in 'i/N' format (e.g., '0/4').",
+    )
+    parser.add_argument(
         "--out",
         default="results.jsonl",
         type=str,
         help="Output JSONL file path.",
+    )
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Resume from an existing output file (requires matching split_hash).",
+    )
+    parser.add_argument(
+        "--append",
+        action="store_true",
+        help="Append to output JSONL instead of overwriting.",
     )
     parser.add_argument(
         "--feedback",
@@ -504,6 +530,8 @@ async def main_async():
 
     dataset = generator.build_dataset(args.split, subset, feedback=args.feedback)
 
+    split_hash = compute_split_hash(args.split, subset, args.feedback)
+
     # Create environment
     rubric = make_rubric()
 
@@ -532,44 +560,154 @@ async def main_async():
         **adapter_kwargs,
     )
 
-    # Run evaluations
-    results = []
+    # Resolve episode indices + shard
     n_episodes = len(dataset)
+    try:
+        episode_indices = parse_index_spec(args.episodes, max_len=n_episodes)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
 
-    print(f"Running {n_episodes} episodes with {args.rollouts} rollout(s) each...")
+    shard = None
+    try:
+        shard = parse_shard(args.shard)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
 
-    for episode_idx in range(n_episodes):
-        for rollout in range(args.rollouts):
-            print(f"Episode {episode_idx + 1}/{n_episodes}, Rollout {rollout + 1}")
+    if shard is not None:
+        shard_index, shard_count = shard
+        episode_indices = apply_shard(episode_indices, shard_index, shard_count)
 
-            result = await run_episode(
-                env,
-                adapter,
-                episode_idx,
-                temperature=args.temperature,
-                verbose=args.verbose,
-            )
-            result["rollout"] = rollout
-            result["model"] = args.model
-            results.append(result)
-
-    # Write results
+    # Resume handling
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    with open(out_path, "w") as f:
-        for r in results:
-            f.write(json.dumps(r) + "\n")
+    done = set()
+    existing_split_hashes = set()
+    if args.resume and out_path.exists():
+        with open(out_path, "r") as f:
+            for line_no, line in enumerate(f, start=1):
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    row = json.loads(line)
+                except json.JSONDecodeError as e:
+                    print(
+                        f"Error: Malformed JSONL in {out_path} at line {line_no}: {e}",
+                        file=sys.stderr,
+                    )
+                    sys.exit(1)
+                existing_split_hashes.add(row.get("split_hash"))
+                if (
+                    row.get("split_hash") == split_hash
+                    and row.get("model") == args.model
+                    and row.get("skin", args.skin) == args.skin
+                ):
+                    try:
+                        ep = int(row.get("episode_idx"))
+                        ro = int(row.get("rollout", 0))
+                    except (TypeError, ValueError):
+                        continue
+                    done.add((ep, ro))
 
-    # Print summary
-    n_success = sum(1 for r in results if r["ok"])
-    n_trap = sum(1 for r in results if r["trap_hit"])
-    avg_queries = sum(r["queries_used"] for r in results) / len(results) if results else 0
-    avg_reward = sum(r["reward"] for r in results) / len(results) if results else 0
+        if None in existing_split_hashes:
+            print(
+                "Error: --resume requires existing results to include split_hash. "
+                "Re-run without --resume or delete the output file.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+        if len(existing_split_hashes) > 1:
+            print(
+                "Error: Output file contains multiple split_hash values; cannot safely resume.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+        if existing_split_hashes and split_hash not in existing_split_hashes:
+            print(
+                "Error: split_hash mismatch; the split file or subset changed. "
+                "Re-run without --resume or use a new output file.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+    mode = "a" if (args.append or (args.resume and out_path.exists())) else "w"
+
+    total_selected = len(episode_indices)
+    print(
+        f"Running {total_selected} episodes with {args.rollouts} rollout(s) each "
+        f"(total runs={total_selected * args.rollouts})..."
+    )
+
+    # Run evaluations (stream results)
+    with open(out_path, mode) as f:
+        for episode_idx in episode_indices:
+            for rollout in range(args.rollouts):
+                if (episode_idx, rollout) in done:
+                    continue
+                print(
+                    f"Episode {episode_idx + 1}/{n_episodes}, Rollout {rollout + 1}"
+                )
+
+                result = await run_episode(
+                    env,
+                    adapter,
+                    episode_idx,
+                    temperature=args.temperature,
+                    verbose=args.verbose,
+                )
+                result["rollout"] = rollout
+                result["model"] = args.model
+                result["skin"] = args.skin
+                result["split_hash"] = split_hash
+                f.write(json.dumps(result) + "\n")
+                f.flush()
+
+    # Print summary (for this model + split)
+    results = []
+    with open(out_path, "r") as f:
+        for line_no, line in enumerate(f, start=1):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError as e:
+                print(
+                    f"Warning: Skipping malformed JSONL in {out_path} at line {line_no}: {e}",
+                    file=sys.stderr,
+                )
+                continue
+            if (
+                row.get("model") == args.model
+                and row.get("split_hash") == split_hash
+                and row.get("skin", args.skin) == args.skin
+            ):
+                results.append(row)
+
+    n_success = sum(1 for r in results if r.get("ok"))
+    n_trap = sum(1 for r in results if r.get("trap_hit"))
+    avg_queries = (
+        sum(r.get("queries_used", 0) for r in results) / len(results) if results else 0
+    )
+    avg_reward = (
+        sum(r.get("reward", 0) for r in results) / len(results) if results else 0
+    )
 
     print(f"\nResults written to {args.out}")
-    print(f"Success rate: {n_success}/{len(results)} ({100 * n_success / len(results):.1f}%)")
-    print(f"Trap rate: {n_trap}/{len(results)} ({100 * n_trap / len(results):.1f}%)")
+    if results:
+        print(
+            f"Success rate: {n_success}/{len(results)} "
+            f"({100 * n_success / len(results):.1f}%)"
+        )
+        print(f"Trap rate: {n_trap}/{len(results)} ({100 * n_trap / len(results):.1f}%)")
+    else:
+        print("Success rate: 0/0 (0.0%)")
+        print("Trap rate: 0/0 (0.0%)")
     print(f"Avg queries: {avg_queries:.1f}")
     print(f"Avg reward: {avg_reward:.3f}")
 
