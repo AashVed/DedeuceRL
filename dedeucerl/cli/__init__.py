@@ -33,10 +33,17 @@ def eval_parallel_main() -> None:
 
     main()
 
+
+def train_main() -> None:
+    from .train import main
+
+    main()
+
 __all__ = [
     "eval_main",
     "generate_main",
     "aggregate_main",
     "selfcheck_main",
     "eval_parallel_main",
+    "train_main",
 ]

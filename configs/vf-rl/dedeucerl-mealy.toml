@@ -1,0 +1,25 @@
+model = "Qwen/Qwen3-4B-Instruct"
+
+[env]
+id = "dedeucerl.vf_env"
+
+[env.args]
+skin = "mealy"
+seeds = [0, 1, 2, 3, 4]
+budget = 25
+n_states = 4
+subset = "train"
+feedback = true
+
+[inference]
+gpus = 1
+
+[trainer]
+gpus = 1
+
+[trainer.args]
+run_name = "dedeucerl-mealy"
+micro_batch_size = 4
+rollouts_per_example = 16
+batch_size = 512
+max_steps = 500

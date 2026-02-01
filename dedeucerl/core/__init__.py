@@ -19,7 +19,9 @@ from .types import ProbeResult, SubmitResult, EpisodeState
 from .config import SkinConfig
 from .rubric import (
     make_rubric,
+    make_train_rubric,
     reward_identification,
+    reward_train_dense,
     metric_success,
     metric_queries,
     metric_trap,
@@ -61,7 +63,9 @@ __all__ = [
     "SkinConfig",
     # Rubric
     "make_rubric",
+    "make_train_rubric",
     "reward_identification",
+    "reward_train_dense",
     "metric_success",
     "metric_queries",
     "metric_trap",

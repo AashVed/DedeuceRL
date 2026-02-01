@@ -56,6 +56,7 @@ DedeuceRL benchmarks this capability by requiring agents to:
 pip install dedeucerl                   # Core
 pip install "dedeucerl[openai]"         # + OpenAI adapter
 pip install "dedeucerl[all]"            # All providers
+pip install "dedeucerl[rl]"             # Verifiers RL trainer extras
 ```
 
 <details>
@@ -338,6 +339,8 @@ uv add 'verifiers[rl]'
 uv run vf-rl @ your-config.toml
 ```
 
+Sample configs are included in `configs/vf-rl/` (e.g., `dedeucerl-mealy.toml`).
+
 ### Example Configuration
 
 ```toml
@@ -345,10 +348,16 @@ uv run vf-rl @ your-config.toml
 model = "Qwen/Qwen3-4B-Instruct"
 
 [env]
-path = "./your_env_module"
+id = "dedeucerl.vf_env"
 
 [env.args]
-max_turns = 30
+skin = "mealy"
+seeds = [0, 1, 2, 3, 4]
+budget = 25
+n_states = 4
+subset = "train"
+feedback = true
+reward_mode = "train_dense"
 
 [trainer.args]
 run_name = "dedeucerl-mealy"
@@ -358,19 +367,13 @@ batch_size = 1024
 max_steps = 500
 ```
 
-### Creating the Environment Module
+### Custom Skins
 
-```python
-# your_env_module.py
-import verifiers as vf
-from dedeucerl.skins import MealyEnv
-from dedeucerl.core import TaskGenerator, make_rubric
+If you create your own skin, you can pass it by import path:
 
-def load_environment(split_path: str = "your_split.json") -> vf.Environment:
-    gen = TaskGenerator(MealyEnv)
-    dataset = gen.build_dataset(split_path, "train", feedback=True)
-    rubric = make_rubric()
-    return MealyEnv(dataset=dataset, rubric=rubric, feedback=True, max_turns=30)
+```toml
+[env.args]
+skin = "my_pkg.my_skin:MySkinEnv"
 ```
 
 ### Alternative Training Frameworks
@@ -474,6 +477,17 @@ Aggregate results into a leaderboard.
 dedeucerl-aggregate results.jsonl --format csv > leaderboard.csv
 dedeucerl-aggregate results.jsonl --format markdown
 dedeucerl-aggregate results.jsonl --format json -o results_summary.json
+```
+
+### `dedeucerl-train`
+
+Generate a vf-rl config (and optionally run it).
+
+```bash
+dedeucerl-train --skin mealy --seeds 0-9 --budget 25 --out configs/tmp.toml
+
+# Run training (requires verifiers[rl] + vf-rl)
+dedeucerl-train --skin mealy --seeds 0-9 --budget 25 --run
 ```
 
 ### `dedeucerl-selfcheck`
