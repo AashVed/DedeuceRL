@@ -60,9 +60,7 @@ def _resolve_skin_class(skin: str) -> type:
         module = importlib.import_module(module_name)
         return getattr(module, class_name)
 
-    raise ValueError(
-        f"Unknown skin '{skin}'. Use a built-in name, entrypoint, or import path."
-    )
+    raise ValueError(f"Unknown skin '{skin}'. Use a built-in name, entrypoint, or import path.")
 
 
 def _coerce_seeds(seeds: Any) -> List[int]:
@@ -239,7 +237,9 @@ def _build_env_for_skin(
             except Exception:
                 first_answer = {}
         n_states = _infer_n_states(cfg, first_answer, skin_cls)
-        max_turns = generator.derive_max_turns(budget=budget_val, n_states=n_states, feedback=feedback)
+        max_turns = generator.derive_max_turns(
+            budget=budget_val, n_states=n_states, feedback=feedback
+        )
 
     rubric = _get_rubric(reward_mode, skin_cls)
 

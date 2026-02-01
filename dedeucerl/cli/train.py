@@ -44,7 +44,7 @@ def _toml_value(v: Any) -> str:
     if isinstance(v, (int, float)):
         return str(v)
     if isinstance(v, str):
-        return f"\"{_toml_escape(v)}\""
+        return f'"{_toml_escape(v)}"'
     if isinstance(v, list):
         return "[" + ", ".join(_toml_value(x) for x in v) + "]"
     if isinstance(v, dict):

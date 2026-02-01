@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Optional
 from dedeucerl.skins import SKIN_REGISTRY
 from dedeucerl.core import TaskGenerator, make_rubric
 from dedeucerl.adapters import get_adapter
+from dedeucerl.adapters.base import decompose_model_spec
 from dedeucerl.utils import (
     DedeuceError,
     error_invalid_argument,
@@ -261,6 +262,22 @@ def parse_args() -> argparse.Namespace:
         help="Sampling temperature (optional; if omitted, provider default).",
     )
     parser.add_argument(
+        "--effort",
+        type=str,
+        default=None,
+        help=(
+            "Reasoning/thinking effort level. "
+            "OpenAI (reasoning.effort): none|minimal|low|medium|high|xhigh (model-dependent). "
+            "Gemini 3 (thinkingLevel): minimal|low|medium|high (model-dependent). "
+            "If set, dedeucerl-eval can perform a cheap 1-token probe call to validate support."
+        ),
+    )
+    parser.add_argument(
+        "--no-effort-probe",
+        action="store_true",
+        help="Skip the provider probe call for --effort (not recommended).",
+    )
+    parser.add_argument(
         "--verbose",
         action="store_true",
         help="Print verbose output.",
@@ -275,6 +292,8 @@ async def run_episode(
     episode_idx: int,
     *,
     temperature: Optional[float] = None,
+    effort: Optional[str] = None,
+    model_spec: Optional[str] = None,
     verbose: bool = False,
 ) -> Dict[str, Any]:
     """Run a single episode and return results."""
@@ -318,6 +337,18 @@ async def run_episode(
             request_kwargs: Dict[str, Any] = {}
             if temperature is not None:
                 request_kwargs["temperature"] = temperature
+
+            # Provider-specific effort controls (validated in main).
+            if effort is not None:
+                if not model_spec:
+                    raise RuntimeError("Internal error: model_spec missing for effort validation.")
+                provider, model_id = decompose_model_spec(model_spec)
+                if provider in ("openai", "openrouter"):
+                    request_kwargs["reasoning"] = {"effort": effort}
+                elif provider in ("gemini", "google"):
+                    request_kwargs["thinking_level"] = effort
+                else:
+                    raise ValueError(f"--effort is not supported for provider '{provider}'.")
 
             print(f"  Turn {turn}: requesting model...")
             reply = adapter.chat(
@@ -505,6 +536,41 @@ async def main_async():
 
     args = parse_args()
 
+    # Normalize --effort. We avoid hardcoding per-model capability tables here.
+    # Instead, when --effort is provided we do:
+    # - a small "typo guard" (value is in the known vocabulary for that provider)
+    # - an optional cheap probe call to let the provider validate the setting
+    effort: Optional[str] = None
+    if args.effort is not None:
+        effort = str(args.effort).strip().lower()
+        if effort == "":
+            effort = None
+
+    if effort is not None:
+        provider, model_id = decompose_model_spec(args.model)
+
+        if provider in ("openai", "openrouter"):
+            allowed = {"none", "minimal", "low", "medium", "high", "xhigh"}
+            if effort not in allowed:
+                print(
+                    f"Error: invalid --effort {effort!r} for provider '{provider}'. "
+                    f"Expected one of: {sorted(allowed)}",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+        elif provider in ("gemini", "google"):
+            allowed = {"minimal", "low", "medium", "high"}
+            if effort not in allowed:
+                print(
+                    f"Error: invalid --effort {effort!r} for provider '{provider}'. "
+                    f"Expected one of: {sorted(allowed)}",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+        else:
+            print(f"Error: --effort is not supported for provider '{provider}'.", file=sys.stderr)
+            sys.exit(1)
+
     # Load skin
     if args.skin not in SKIN_REGISTRY:
         print(f"Error: Unknown skin '{args.skin}'", file=sys.stderr)
@@ -559,6 +625,34 @@ async def main_async():
         args.model,
         **adapter_kwargs,
     )
+
+    # When --effort is provided, validate it by doing a tiny probe call.
+    # This avoids hardcoding per-model capability tables and prevents wasting
+    # money on long eval runs with an invalid setting.
+    if effort is not None and not bool(args.no_effort_probe):
+        provider, model_id = decompose_model_spec(args.model)
+        # Use a tiny output budget, but keep it above provider minimums.
+        # OpenAI GPT-5* enforces a minimum max_output_tokens (currently 16).
+        probe_kwargs: Dict[str, Any] = {"max_tokens": 16}
+        if provider in ("openai", "openrouter"):
+            probe_kwargs["reasoning"] = {"effort": effort}
+        elif provider in ("gemini", "google"):
+            probe_kwargs["thinking_level"] = effort
+
+        try:
+            adapter.chat(
+                [{"role": "system", "content": "ping"}, {"role": "user", "content": "ping"}],
+                tools=None,
+                **probe_kwargs,
+            )
+        except Exception as e:
+            print(
+                f"Error: --effort {effort!r} was rejected for model '{model_id}' "
+                f"(provider '{provider}').\n"
+                f"Provider error: {e}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
 
     # Resolve episode indices + shard
     n_episodes = len(dataset)
@@ -649,15 +743,15 @@ async def main_async():
             for rollout in range(args.rollouts):
                 if (episode_idx, rollout) in done:
                     continue
-                print(
-                    f"Episode {episode_idx + 1}/{n_episodes}, Rollout {rollout + 1}"
-                )
+                print(f"Episode {episode_idx + 1}/{n_episodes}, Rollout {rollout + 1}")
 
                 result = await run_episode(
                     env,
                     adapter,
                     episode_idx,
                     temperature=args.temperature,
+                    effort=effort,
+                    model_spec=args.model,
                     verbose=args.verbose,
                 )
                 result["rollout"] = rollout
@@ -691,19 +785,12 @@ async def main_async():
 
     n_success = sum(1 for r in results if r.get("ok"))
     n_trap = sum(1 for r in results if r.get("trap_hit"))
-    avg_queries = (
-        sum(r.get("queries_used", 0) for r in results) / len(results) if results else 0
-    )
-    avg_reward = (
-        sum(r.get("reward", 0) for r in results) / len(results) if results else 0
-    )
+    avg_queries = sum(r.get("queries_used", 0) for r in results) / len(results) if results else 0
+    avg_reward = sum(r.get("reward", 0) for r in results) / len(results) if results else 0
 
     print(f"\nResults written to {args.out}")
     if results:
-        print(
-            f"Success rate: {n_success}/{len(results)} "
-            f"({100 * n_success / len(results):.1f}%)"
-        )
+        print(f"Success rate: {n_success}/{len(results)} ({100 * n_success / len(results):.1f}%)")
         print(f"Trap rate: {n_trap}/{len(results)} ({100 * n_trap / len(results):.1f}%)")
     else:
         print("Success rate: 0/0 (0.0%)")
