@@ -117,6 +117,26 @@ class TaskGenerator:
         with open(split_path, "r", encoding="utf-8") as f:
             split_data = json.load(f)
 
+        return self.build_dataset_from_split(split_data, subset, feedback=feedback)
+
+    def build_dataset_from_split(
+        self,
+        split_data: Dict[str, Any],
+        subset: str,
+        *,
+        feedback: bool = False,
+    ) -> Dataset:
+        """
+        Build a HuggingFace Dataset from an in-memory split dict.
+
+        Args:
+            split_data: Split configuration dict.
+            subset: Name of the subset to load.
+            feedback: Whether feedback mode is enabled.
+
+        Returns:
+            Dataset with 'prompt' and 'answer' columns.
+        """
         if subset not in split_data:
             available = [k for k in split_data.keys() if k not in ("version", "metadata")]
             raise ValueError(f"Subset '{subset}' not found. Available: {available}")

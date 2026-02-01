@@ -34,6 +34,28 @@ def reward_identification(
     return float(max(0.0, base - efficiency_penalty))
 
 
+def reward_train_dense(
+    completion: Any,
+    answer: str,
+    state: Dict[str, Any],
+    parser: Parser,
+    **kwargs,
+) -> float:
+    """Training-friendly reward with graded efficiency and failure penalty."""
+    ok = bool(state.get("ok", False))
+    trap = bool(state.get("trap_hit", False))
+    queries = int(state.get("queries_used", 0))
+    budget = int(state.get("budget_init", max(1, queries)))
+
+    # Encourage fewer queries, even on failures.
+    efficiency = 1.0 - min(1.0, queries / max(1, budget))
+    base = 1.0 if ok else 0.0
+    trap_penalty = 0.5 if trap else 0.0
+
+    reward = base + 0.2 * efficiency - trap_penalty
+    return float(max(-1.0, reward))
+
+
 def metric_success(
     completion: Any,
     answer: str,
@@ -88,6 +110,21 @@ def make_rubric() -> Rubric:
     return Rubric(
         funcs=[
             reward_identification,
+            metric_success,
+            metric_queries,
+            metric_trap,
+            metric_budget_remaining,
+        ],
+        weights=[1.0, 0.0, 0.0, 0.0, 0.0],
+        parser=Parser(extract_fn=lambda s: s),
+    )
+
+
+def make_train_rubric() -> Rubric:
+    """Create a training-friendly rubric with denser rewards."""
+    return Rubric(
+        funcs=[
+            reward_train_dense,
             metric_success,
             metric_queries,
             metric_trap,
