@@ -10,7 +10,7 @@ here to avoid confusing warnings and brittle behavior for practitioners.
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from .base import BaseAdapter, ModelReply
 
@@ -230,5 +230,6 @@ class GeminiAdapter(BaseAdapter):
                 "total_tokens": int(getattr(um, "total_token_count", 0)),
             }
 
-        return ModelReply(content=content_text, tool_calls=tool_calls, finish_reason="stop", usage=usage)
-
+        return ModelReply(
+            content=content_text, tool_calls=tool_calls, finish_reason="stop", usage=usage
+        )

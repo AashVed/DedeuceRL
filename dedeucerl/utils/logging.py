@@ -59,10 +59,13 @@ def configure_logging(
 
     handler = logging.StreamHandler(sys.stderr)
     if format_style == "simple":
-        handler.setFormatter(logging.Formatter(
-            "%(levelname)s: %(message)s" if not include_timestamp
-            else "%(asctime)s %(levelname)s: %(message)s"
-        ))
+        handler.setFormatter(
+            logging.Formatter(
+                "%(levelname)s: %(message)s"
+                if not include_timestamp
+                else "%(asctime)s %(levelname)s: %(message)s"
+            )
+        )
     else:
         handler.setFormatter(DedeuceFormatter(include_timestamp=include_timestamp))
 
@@ -87,20 +90,37 @@ class DedeuceFormatter(logging.Formatter):
 
         # Main message
         msg = record.getMessage()
-        parts.append(f"msg=\"{msg}\"")
+        parts.append(f'msg="{msg}"')
 
         # Extra fields (structured data)
         extra_keys = set(record.__dict__.keys()) - {
-            'name', 'msg', 'args', 'created', 'filename', 'funcName',
-            'levelname', 'levelno', 'lineno', 'module', 'msecs',
-            'pathname', 'process', 'processName', 'relativeCreated',
-            'stack_info', 'exc_info', 'exc_text', 'thread', 'threadName',
-            'message', 'asctime',
+            "name",
+            "msg",
+            "args",
+            "created",
+            "filename",
+            "funcName",
+            "levelname",
+            "levelno",
+            "lineno",
+            "module",
+            "msecs",
+            "pathname",
+            "process",
+            "processName",
+            "relativeCreated",
+            "stack_info",
+            "exc_info",
+            "exc_text",
+            "thread",
+            "threadName",
+            "message",
+            "asctime",
         }
         for key in sorted(extra_keys):
             value = getattr(record, key)
             if isinstance(value, str):
-                parts.append(f"{key}=\"{value}\"")
+                parts.append(f'{key}="{value}"')
             else:
                 parts.append(f"{key}={value}")
 
@@ -111,19 +131,11 @@ class DedeuceFormatter(logging.Formatter):
 def log_episode_start(skin: str, seed: int, budget: int, **extra) -> None:
     """Log episode start."""
     logger = get_logger()
-    logger.info(
-        "Episode started",
-        extra={"skin": skin, "seed": seed, "budget": budget, **extra}
-    )
+    logger.info("Episode started", extra={"skin": skin, "seed": seed, "budget": budget, **extra})
 
 
 def log_episode_end(
-    skin: str,
-    seed: int,
-    success: bool,
-    queries_used: int,
-    trap_hit: bool,
-    **extra
+    skin: str, seed: int, success: bool, queries_used: int, trap_hit: bool, **extra
 ) -> None:
     """Log episode completion."""
     logger = get_logger()
@@ -135,18 +147,15 @@ def log_episode_end(
             "success": success,
             "queries_used": queries_used,
             "trap_hit": trap_hit,
-            **extra
-        }
+            **extra,
+        },
     )
 
 
 def log_tool_call(tool_name: str, args: Dict[str, Any], **extra) -> None:
     """Log a tool call."""
     logger = get_logger()
-    logger.debug(
-        f"Tool call: {tool_name}",
-        extra={"tool": tool_name, "args": str(args), **extra}
-    )
+    logger.debug(f"Tool call: {tool_name}", extra={"tool": tool_name, "args": str(args), **extra})
 
 
 def log_error(message: str, error_code: str = "UNKNOWN", **extra) -> None:

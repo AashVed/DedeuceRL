@@ -743,9 +743,7 @@ async def main_async():
             for rollout in range(args.rollouts):
                 if (episode_idx, rollout) in done:
                     continue
-                print(
-                    f"Episode {episode_idx + 1}/{n_episodes}, Rollout {rollout + 1}"
-                )
+                print(f"Episode {episode_idx + 1}/{n_episodes}, Rollout {rollout + 1}")
 
                 result = await run_episode(
                     env,
@@ -787,19 +785,12 @@ async def main_async():
 
     n_success = sum(1 for r in results if r.get("ok"))
     n_trap = sum(1 for r in results if r.get("trap_hit"))
-    avg_queries = (
-        sum(r.get("queries_used", 0) for r in results) / len(results) if results else 0
-    )
-    avg_reward = (
-        sum(r.get("reward", 0) for r in results) / len(results) if results else 0
-    )
+    avg_queries = sum(r.get("queries_used", 0) for r in results) / len(results) if results else 0
+    avg_reward = sum(r.get("reward", 0) for r in results) / len(results) if results else 0
 
     print(f"\nResults written to {args.out}")
     if results:
-        print(
-            f"Success rate: {n_success}/{len(results)} "
-            f"({100 * n_success / len(results):.1f}%)"
-        )
+        print(f"Success rate: {n_success}/{len(results)} ({100 * n_success / len(results):.1f}%)")
         print(f"Trap rate: {n_trap}/{len(results)} ({100 * n_trap / len(results):.1f}%)")
     else:
         print("Success rate: 0/0 (0.0%)")

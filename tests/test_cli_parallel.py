@@ -101,12 +101,8 @@ def test_sharding_partitions_full_set(tmp_path: Path) -> None:
         "1",
     ]
 
-    _run_module(
-        "dedeucerl.cli.eval", base_args + ["--shard", "0/2", "--out", str(out0)]
-    )
-    _run_module(
-        "dedeucerl.cli.eval", base_args + ["--shard", "1/2", "--out", str(out1)]
-    )
+    _run_module("dedeucerl.cli.eval", base_args + ["--shard", "0/2", "--out", str(out0)])
+    _run_module("dedeucerl.cli.eval", base_args + ["--shard", "1/2", "--out", str(out1)])
 
     rows0 = _load_results(out0)
     rows1 = _load_results(out1)
