@@ -56,6 +56,7 @@ DedeuceRL benchmarks this capability by requiring agents to:
 pip install dedeucerl                   # Core
 pip install "dedeucerl[openai]"         # + OpenAI adapter
 pip install "dedeucerl[all]"            # All providers
+pip install "dedeucerl[gemini]"         # + Gemini adapter (google-genai; supported)
 pip install "dedeucerl[rl]"             # Verifiers RL trainer extras
 ```
 
@@ -435,6 +436,8 @@ dedeucerl-eval \
 ```
 
 **Supported model specs:** `openai:gpt-4o` · `anthropic:claude-3-opus-20240229` · `gemini:gemini-1.5-pro` · `openrouter:<model>`
+
+**Optional effort (supported models only):** `--effort high|xhigh|...` (validated via a cheap probe; disable with `--no-effort-probe`)
 
 **Episode selection + sharding:**
 

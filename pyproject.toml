@@ -1,6 +1,6 @@
 [project]
 name = "dedeucerl"
-version = "1.0.5"
+version = "1.0.6"
 description = "A modular framework for active system identification benchmarks"
 readme = "README.md"
 license = {file = "LICENSE"}
@@ -47,14 +47,12 @@ anthropic = [
     "anthropic>=0.20",
 ]
 gemini = [
-    "google-genai>=0.1",  # new Gemini SDK (preferred)
-    "google-generativeai>=0.5",
+    "google-genai>=0.1",  # Google Gen AI SDK (official, supported)
 ]
 all = [
     "openai>=1.0",
     "anthropic>=0.20",
     "google-genai>=0.1",
-    "google-generativeai>=0.5",
 ]
 dev = [
     "pytest>=7.0",
