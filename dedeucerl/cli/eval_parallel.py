@@ -59,12 +59,16 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
 
 
 def _validate_eval_args(eval_args: List[str]) -> None:
-    forbidden = {"--out", "--shard"}
+    forbidden = {"--out", "--shard", "--trace-out"}
     for token in eval_args:
         if token in forbidden:
             raise ValueError(f"Do not pass {token} to eval-parallel; it is managed here.")
-        if token.startswith("--out=") or token.startswith("--shard="):
-            raise ValueError("Do not pass --out/--shard to eval-parallel; it is managed here.")
+        if token.startswith("--out=") or token.startswith("--shard=") or token.startswith(
+            "--trace-out="
+        ):
+            raise ValueError(
+                "Do not pass --out/--shard/--trace-out to eval-parallel; it is managed here."
+            )
 
 
 def main():

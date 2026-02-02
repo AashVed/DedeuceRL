@@ -8,7 +8,7 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Callable
 
 from dedeucerl.skins import SKIN_REGISTRY
 from dedeucerl.core import TaskGenerator, make_rubric
@@ -282,6 +282,12 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Print verbose output.",
     )
+    parser.add_argument(
+        "--trace-out",
+        default=None,
+        type=str,
+        help="Optional JSONL trace output (per-turn events) for debugging.",
+    )
 
     return parser.parse_args()
 
@@ -291,10 +297,13 @@ async def run_episode(
     adapter,
     episode_idx: int,
     *,
+    rollout: int = 0,
     temperature: Optional[float] = None,
     effort: Optional[str] = None,
     model_spec: Optional[str] = None,
     verbose: bool = False,
+    trace_writer: Optional[Callable[[Dict[str, Any]], None]] = None,
+    trace_base: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Run a single episode and return results."""
 
@@ -320,6 +329,34 @@ async def run_episode(
     answer_data = json.loads(state.get("answer", "{}"))
     spec = _domain_spec_from_answer(env.__class__, answer_data)
     tool_schemas = spec.get_tools()
+
+    # Trace helper
+    trace_ctx: Dict[str, Any] = dict(trace_base or {})
+    trace_ctx.setdefault("episode_idx", episode_idx)
+    trace_ctx.setdefault("rollout", rollout)
+    trace_ctx.setdefault("seed", answer_data.get("seed", -1))
+
+    def _trace(event: Dict[str, Any]) -> None:
+        if trace_writer is None:
+            return
+        payload = dict(trace_ctx)
+        payload.update(event)
+        trace_writer(payload)
+
+    # Metrics
+    tool_calls_total = 0
+    usage_prompt = 0
+    usage_completion = 0
+    usage_total = 0
+    usage_seen = False
+
+    _trace(
+        {
+            "event": "episode_start",
+            "budget_init": state.get("budget_init", None),
+            "max_turns": env.max_turns,
+        }
+    )
 
     # Evaluation loop
     turn = 0
@@ -357,6 +394,26 @@ async def run_episode(
                 **request_kwargs,
             )
 
+            # Track usage + tool call counts
+            if reply.usage:
+                usage_seen = True
+                usage_prompt += int(reply.usage.get("prompt_tokens") or 0)
+                usage_completion += int(reply.usage.get("completion_tokens") or 0)
+                usage_total += int(reply.usage.get("total_tokens") or 0)
+
+            tool_calls_total += len(reply.tool_calls or [])
+
+            _trace(
+                {
+                    "event": "model_reply",
+                    "turn": turn,
+                    "finish_reason": reply.finish_reason,
+                    "usage": reply.usage,
+                    "tool_calls": reply.tool_calls,
+                    "content": reply.content,
+                }
+            )
+
             if reply.tool_calls:
                 # Add one assistant message containing all tool calls (OpenAI-style)
                 messages.append(
@@ -387,6 +444,16 @@ async def run_episode(
                         print(
                             f"  Turn {turn}: invalid tool args for {func_name} -> {_one_line(result)}"
                         )
+                        _trace(
+                            {
+                                "event": "tool_result",
+                                "turn": turn,
+                                "tool": func_name,
+                                "tool_call_id": tool_call_id,
+                                "args": {"raw_arguments": raw_args},
+                                "result": result,
+                            }
+                        )
                         messages.append(
                             {"role": "tool", "tool_call_id": tool_call_id, "content": result}
                         )
@@ -411,6 +478,16 @@ async def run_episode(
                         print(
                             f"  Turn {turn}: invalid tool args for {func_name} -> {_one_line(result)}"
                         )
+                        _trace(
+                            {
+                                "event": "tool_result",
+                                "turn": turn,
+                                "tool": func_name,
+                                "tool_call_id": tool_call_id,
+                                "args": {"raw_arguments": raw_args},
+                                "result": result,
+                            }
+                        )
                         messages.append(
                             {"role": "tool", "tool_call_id": tool_call_id, "content": result}
                         )
@@ -433,6 +510,16 @@ async def run_episode(
                         err = error_unknown_tool(func_name, [t.__name__ for t in tools])
                         result = _tool_error_envelope(state, err, extra={"ok": False})
                         print(f"  Turn {turn}: unknown tool {func_name} -> {_one_line(result)}")
+                        _trace(
+                            {
+                                "event": "tool_result",
+                                "turn": turn,
+                                "tool": func_name,
+                                "tool_call_id": tool_call_id,
+                                "args": func_args,
+                                "result": result,
+                            }
+                        )
                         messages.append(
                             {"role": "tool", "tool_call_id": tool_call_id, "content": result}
                         )
@@ -464,6 +551,17 @@ async def run_episode(
                     if verbose:
                         # Helpful for debugging exact JSON payloads.
                         print(f"  Turn {turn}: raw result len={len(str(result))}")
+
+                    _trace(
+                        {
+                            "event": "tool_result",
+                            "turn": turn,
+                            "tool": func_name,
+                            "tool_call_id": tool_call_id,
+                            "args": func_args,
+                            "result": result,
+                        }
+                    )
 
                     messages.append(
                         {
@@ -517,6 +615,27 @@ async def run_episode(
             raw = raw[0] if raw else 0.0
         scores.append(float(raw))
 
+    usage_prompt_tokens = usage_prompt if usage_seen else None
+    usage_completion_tokens = usage_completion if usage_seen else None
+    usage_total_tokens = usage_total if usage_seen else None
+    tool_calls_processed = len(state.get("trajectory", []))
+
+    _trace(
+        {
+            "event": "episode_end",
+            "ok": state.get("ok", False),
+            "trap_hit": state.get("trap_hit", False),
+            "queries_used": state.get("queries_used", 0),
+            "budget_remaining": state.get("budget", 0),
+            "turns": turn,
+            "tool_calls_total": tool_calls_total,
+            "tool_calls_processed": tool_calls_processed,
+            "usage_prompt_tokens": usage_prompt_tokens,
+            "usage_completion_tokens": usage_completion_tokens,
+            "usage_total_tokens": usage_total_tokens,
+        }
+    )
+
     return {
         "episode_idx": episode_idx,
         "seed": json.loads(state.get("answer", "{}")).get("seed", -1),
@@ -526,6 +645,11 @@ async def run_episode(
         "budget_remaining": state.get("budget", 0),
         "turns": turn,
         "reward": scores[0] if scores else 0.0,
+        "tool_calls_total": tool_calls_total,
+        "tool_calls_processed": tool_calls_processed,
+        "usage_prompt_tokens": usage_prompt_tokens,
+        "usage_completion_tokens": usage_completion_tokens,
+        "usage_total_tokens": usage_total_tokens,
     }
 
 
@@ -731,6 +855,20 @@ async def main_async():
 
     mode = "a" if (args.append or (args.resume and out_path.exists())) else "w"
 
+    trace_f = None
+    trace_path = None
+    if args.trace_out:
+        trace_path = Path(args.trace_out)
+        trace_path.parent.mkdir(parents=True, exist_ok=True)
+        trace_mode = "a" if (args.append or (args.resume and trace_path.exists())) else "w"
+        trace_f = open(trace_path, trace_mode)
+
+    def _write_trace(event: Dict[str, Any]) -> None:
+        if trace_f is None:
+            return
+        trace_f.write(json.dumps(event) + "\n")
+        trace_f.flush()
+
     total_selected = len(episode_indices)
     print(
         f"Running {total_selected} episodes with {args.rollouts} rollout(s) each "
@@ -749,10 +887,17 @@ async def main_async():
                     env,
                     adapter,
                     episode_idx,
+                    rollout=rollout,
                     temperature=args.temperature,
                     effort=effort,
                     model_spec=args.model,
                     verbose=args.verbose,
+                    trace_writer=_write_trace if trace_f is not None else None,
+                    trace_base={
+                        "model": args.model,
+                        "skin": args.skin,
+                        "split_hash": split_hash,
+                    },
                 )
                 result["rollout"] = rollout
                 result["model"] = args.model
@@ -760,6 +905,9 @@ async def main_async():
                 result["split_hash"] = split_hash
                 f.write(json.dumps(result) + "\n")
                 f.flush()
+
+    if trace_f is not None:
+        trace_f.close()
 
     # Print summary (for this model + split)
     results = []

@@ -439,6 +439,8 @@ dedeucerl-eval \
 
 **Optional effort (supported models only):** `--effort high|xhigh|...` (validated via a cheap probe; disable with `--no-effort-probe`)
 
+**Optional tracing:** `--trace-out traces.jsonl` writes per-turn JSONL events (model replies + tool results) for debugging.
+
 **Episode selection + sharding:**
 
 ```bash
