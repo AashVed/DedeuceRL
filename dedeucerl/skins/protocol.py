@@ -691,18 +691,37 @@ class ProtocolEnv(HiddenSystemEnv):
                 "Your submission is correct if it produces the SAME output sequence as the hidden API\n"
                 "for ALL possible input sequences. You do NOT need to match the exact number of states;\n"
                 "a minimized/equivalent specification with fewer states is also accepted.\n\n"
-                "Tools:\n" + tools_text + "\n\n"
-                "Specification JSON schema (STATE-DEPENDENT):\n"
-                '{"n_states": <int>, "start": 0, "transitions": {\n'
-                '  "0": {"/endpoint": {"METHOD": [next_state, status], ...}, ...},\n'
-                '  "1": {"/endpoint": {"METHOD": [next_state, status], ...}, ...},\n'
-                "  ...\n"
-                "}}\n\n"
-                "Example (n_states=2):\n"
-                '{"n_states":2,"start":0,"transitions":{\n'
-                '  "0":{"/users":{"GET":[0,200],"POST":[1,201]}},\n'
-                '  "1":{"/users":{"GET":[1,404],"POST":[0,201]}}\n'
-                "}}"
+                + "Tool return fields (meaning):\n"
+                + "- status: HTTP status code returned by the hidden API.\n"
+                + "- body: response body (informational; correctness is evaluated on status codes).\n"
+                + "- budget_left: remaining query budget AFTER this tool call.\n"
+                + "- queries_used: total queries consumed so far (includes both api_call() and submit_spec()).\n\n"
+                + (
+                    "Counterexample semantics (feedback mode):\n"
+                    "- If submit_spec is incorrect, counterexample is a short distinguishing trace from the START state (0).\n"
+                    "- The counterexample does NOT change your live episode state.\n"
+                    "- Format: [{\"call\": \"GET /users\", \"expected_status\": 200}, ...] with the TRUE expected_status.\n\n"
+                    if feedback
+                    else ""
+                )
+                + "Submission schema footguns (avoid these mistakes):\n"
+                + "- Use string state keys: \"0\", \"1\", ...\n"
+                + "- transitions must include every declared state and each observed endpoint/method combination.\n"
+                + "- Each transition value is [next_state, status] (do NOT swap order).\n\n"
+                + "Tools:\n"
+                + tools_text
+                + "\n\n"
+                + "Specification JSON schema (STATE-DEPENDENT):\n"
+                + '{"n_states": <int>, "start": 0, "transitions": {\n'
+                + '  "0": {"/endpoint": {"METHOD": [next_state, status], ...}, ...},\n'
+                + '  "1": {"/endpoint": {"METHOD": [next_state, status], ...}, ...},\n'
+                + "  ...\n"
+                + "}}\n\n"
+                + "Example (n_states=2):\n"
+                + '{"n_states":2,"start":0,"transitions":{\n'
+                + '  "0":{"/users":{"GET":[0,200],"POST":[1,201]}},\n'
+                + '  "1":{"/users":{"GET":[1,404],"POST":[0,201]}}\n'
+                + "}}"
             ),
         }
 
