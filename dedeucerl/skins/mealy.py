@@ -600,11 +600,30 @@ class MealyEnv(HiddenSystemEnv):
                 "- submit_table(table_json): consumes 1 query. Correct submission ends the episode; incorrect continues"
                 + (" (with counterexample)." if feedback else ".")
                 + " Budget=0 also ends the episode.\n\n"
-                "Tools:\n" + tools_text + "\n\n"
-                "Submit-table JSON schema:\n"
-                '{"n": <int>, "start": 0, "trans": {"0": {"A": [<ns>, <out>], "B": [...], "C": [...]}, ...}}\n\n'
-                "Skeleton example (n=2):\n"
-                '{"n":2,"start":0,"trans":{"0":{"A":[1,2],"B":[0,1],"C":[0,0]},"1":{"A":[0,0],"B":[1,1],"C":[1,2]}}}'
+                + "Tool return fields (meaning):\n"
+                + "- out: the output value produced by the hidden machine for the last act().\n"
+                + "- budget_left: remaining query budget AFTER this tool call.\n"
+                + "- t: 1-based count of act() probes taken so far (submit_table does not increment t).\n"
+                + "- queries_used: total queries consumed so far (includes both act() and submit_table()).\n\n"
+                + (
+                    "Counterexample semantics (feedback mode):\n"
+                    "- If submit_table is incorrect, counterexample is a short distinguishing trace from the START state (0).\n"
+                    "- The counterexample does NOT change your live episode state (your current hidden state remains unchanged).\n"
+                    "- Format: [{\"in\": \"A\", \"out\": 0}, {\"in\": \"B\", \"out\": 2}, ...] where out is the TRUE output.\n\n"
+                    if feedback
+                    else ""
+                )
+                + "Submission schema footguns (avoid these mistakes):\n"
+                + "- Use string state keys: \"0\", \"1\", ... \"n-1\".\n"
+                + "- trans must include EVERY state 0..n-1 and EACH symbol A,B,C exactly once.\n"
+                + "- Each transition value is [next_state, out] (do NOT swap order).\n\n"
+                + "Tools:\n"
+                + tools_text
+                + "\n\n"
+                + "Submit-table JSON schema:\n"
+                + '{"n": <int>, "start": 0, "trans": {"0": {"A": [<ns>, <out>], "B": [...], "C": [...]}, ...}}\n\n'
+                + "Skeleton example (n=2):\n"
+                + '{"n":2,"start":0,"trans":{"0":{"A":[1,2],"B":[0,1],"C":[0,0]},"1":{"A":[0,0],"B":[1,1],"C":[1,2]}}}'
             ),
         }
 

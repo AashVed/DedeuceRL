@@ -666,10 +666,30 @@ class APIEnv(HiddenSystemEnv):
                 "Your submission is correct if it matches the hidden API for ALL possible input sequences\n"
                 "(matching both status code and response schema tag).\n"
                 "You do NOT need to match the exact number of internal states; minimized equivalent specs are accepted.\n\n"
-                "Tools:\n" + tools_text + "\n\n"
-                "Specification JSON schema (STATE-DEPENDENT):\n"
-                '{"n_states": <int>, "start": 0, "transitions": {"0": {"/endpoint": {"METHOD": {"variant": [next_state, status, schema]}}}}}\n\n'
-                "Respond only with tool calls."
+                + "Tool return fields (meaning):\n"
+                + "- status: HTTP status code.\n"
+                + "- schema: a coarse response schema tag (part of correctness).\n"
+                + "- budget_left: remaining query budget AFTER this tool call.\n"
+                + "- queries_used: total queries consumed so far (includes both api_call() and submit_spec()).\n\n"
+                + (
+                    "Counterexample semantics (feedback mode):\n"
+                    "- If submit_spec is incorrect, counterexample is a short distinguishing trace from the START state (0).\n"
+                    "- The counterexample does NOT change your live episode state.\n"
+                    "- Format: [{\"call\": \"POST /login#valid\", \"expected_status\": 200, \"expected_schema\": \"AuthOk\"}, ...]\n"
+                    "  with TRUE expected_status/expected_schema.\n\n"
+                    if feedback
+                    else ""
+                )
+                + "Submission schema footguns (avoid these mistakes):\n"
+                + "- Use string state keys: \"0\", \"1\", ...\n"
+                + "- transitions must include every declared state and all observed endpoint/method/variant entries.\n"
+                + "- Each transition value is [next_state, status, schema] (do NOT swap order).\n\n"
+                + "Tools:\n"
+                + tools_text
+                + "\n\n"
+                + "Specification JSON schema (STATE-DEPENDENT):\n"
+                + '{"n_states": <int>, "start": 0, "transitions": {"0": {"/endpoint": {"METHOD": {"variant": [next_state, status, schema]}}}}}\n\n'
+                + "Respond only with tool calls."
             ),
         }
 

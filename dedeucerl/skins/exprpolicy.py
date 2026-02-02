@@ -1378,6 +1378,22 @@ class ExprPolicyEnv(HiddenSystemEnv):
                     if feedback
                     else ""
                 )
+                + "\n"
+                + "Tool return fields (meaning):\n"
+                + "- budget_left: remaining budget AFTER this tool call.\n"
+                + "- queries_used: total budget consumed so far (sum of tool costs so far).\n\n"
+                + (
+                    "Counterexample semantics (feedback mode):\n"
+                    "- If submit(expr) is incorrect, counterexample is ONE failing hidden test case.\n"
+                    "- The counterexample does NOT change your live episode state.\n"
+                    "- Format: {\"case_index\": int, \"input\": {...}, \"expected\": bool, \"got\": bool}.\n\n"
+                    if feedback
+                    else ""
+                )
+                + "Common footguns (avoid these mistakes):\n"
+                + "- Your final expression must evaluate to type Bool.\n"
+                + "- Stay within max_expr_len from OBSERVATION.\n"
+                + "- Use only the provided operators/builtins/field names from OBSERVATION.\n"
                 + "\nTools:\n"
                 + tools_text
                 + "\n\nRespond only with tool calls."
