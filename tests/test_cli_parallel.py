@@ -10,7 +10,7 @@ from typing import Dict, List, Tuple
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SPLIT_PATH = REPO_ROOT / "seeds" / "mealy_smoke.json"
+SPLIT_PATH = REPO_ROOT / "dataset" / "smoke" / "mealy_smoke.json"
 
 
 def _run_module(module: str, args: List[str]) -> None:
@@ -143,3 +143,47 @@ def test_parallel_matches_sequential(tmp_path: Path) -> None:
     assert seq_map.keys() == par_map.keys()
     for k in seq_map.keys():
         assert seq_map[k] == par_map[k]
+
+
+def test_parallel_trace_out(tmp_path: Path) -> None:
+    """Parallel runner should support --trace-out and merge per-shard traces."""
+    out_path = tmp_path / "parallel.jsonl"
+    trace_path = tmp_path / "parallel.trace.jsonl"
+
+    base_args = [
+        "--skin",
+        "mealy",
+        "--split",
+        str(SPLIT_PATH),
+        "--model",
+        "heuristic:none",
+        "--rollouts",
+        "1",
+    ]
+
+    _run_module(
+        "dedeucerl.cli.eval_parallel",
+        ["--jobs", "2", "--out", str(out_path), "--trace-out", str(trace_path), *base_args],
+    )
+
+    assert out_path.exists() and out_path.stat().st_size > 0
+    assert trace_path.exists() and trace_path.stat().st_size > 0
+
+    # Trace JSONL must be parseable and contain expected keys.
+    starts = 0
+    for line in trace_path.read_text().splitlines():
+        if not line.strip():
+            continue
+        row = json.loads(line)
+        assert "event" in row
+        assert "episode_idx" in row
+        if row["event"] == "episode_start":
+            starts += 1
+
+    assert starts > 0
+
+    # Part files should be removed by default.
+    assert not (tmp_path / "parallel.part0.jsonl").exists()
+    assert not (tmp_path / "parallel.part1.jsonl").exists()
+    assert not (tmp_path / "parallel.trace.part0.jsonl").exists()
+    assert not (tmp_path / "parallel.trace.part1.jsonl").exists()

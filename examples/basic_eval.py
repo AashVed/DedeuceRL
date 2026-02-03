@@ -47,7 +47,7 @@ def main() -> None:
         trap=True,  # Enable trap actions
     )
 
-    # Save to a temporary file (in real usage, save to seeds/ directory)
+    # Save to a temporary file (in real usage, save to dataset/ directory)
     with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
         json.dump(split, f, indent=2)
         split_path = f.name

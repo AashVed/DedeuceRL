@@ -44,6 +44,15 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
         help="Output JSONL file path (merged).",
     )
     parser.add_argument(
+        "--trace-out",
+        default=None,
+        type=str,
+        help=(
+            "Optional merged JSONL trace output (per-turn events). "
+            "When set, each shard writes to a part trace file which is merged on success."
+        ),
+    )
+    parser.add_argument(
         "--keep-parts",
         action="store_true",
         help="Keep per-shard part files after merging.",
@@ -59,6 +68,7 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
 
 
 def _validate_eval_args(eval_args: List[str]) -> None:
+    # These flags are managed by this wrapper.
     forbidden = {"--out", "--shard", "--trace-out"}
     for token in eval_args:
         if token in forbidden:
@@ -87,6 +97,11 @@ def main():
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
+    trace_out_path: Path | None = None
+    if args.trace_out:
+        trace_out_path = Path(args.trace_out)
+        trace_out_path.parent.mkdir(parents=True, exist_ok=True)
+
     cuda = os.environ.get("CUDA_VISIBLE_DEVICES")
     devices = []
     if cuda:
@@ -96,6 +111,7 @@ def main():
 
     procs = []
     part_paths = []
+    trace_part_paths: List[Path] = []
 
     for i in range(jobs):
         part_path = _part_path(out_path, i)
@@ -111,6 +127,11 @@ def main():
             str(part_path),
             *eval_args,
         ]
+
+        if trace_out_path is not None:
+            trace_part_path = _part_path(trace_out_path, i)
+            trace_part_paths.append(trace_part_path)
+            cmd.extend(["--trace-out", str(trace_part_path)])
 
         env = os.environ.copy()
         if devices:
@@ -144,12 +165,26 @@ def main():
                 for line in pf:
                     out_f.write(line)
 
+    if trace_out_path is not None:
+        with open(trace_out_path, "w") as trace_f:
+            for trace_part in trace_part_paths:
+                if not trace_part.exists():
+                    continue
+                with open(trace_part, "r") as pf:
+                    for line in pf:
+                        trace_f.write(line)
+
     if not args.keep_parts:
         for part_path in part_paths:
             if part_path.exists():
                 part_path.unlink()
+        for trace_part in trace_part_paths:
+            if trace_part.exists():
+                trace_part.unlink()
 
     print(f"Results written to {out_path}")
+    if trace_out_path is not None:
+        print(f"Trace written to {trace_out_path}")
 
 
 if __name__ == "__main__":

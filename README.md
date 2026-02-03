@@ -203,7 +203,7 @@ dedeucerl-generate \
   --budget 100 \
   --n-states 4 \
   --no-trap \
-  -o seeds/mealy_test.json
+  -o dataset/mealy_test.json
 
 # Generate Protocol split
 dedeucerl-generate \
@@ -212,7 +212,7 @@ dedeucerl-generate \
   --budget 120 \
   --n-endpoints 5 \
   --n-states 4 \
-  -o seeds/protocol_test.json
+  -o dataset/protocol_test.json
 ```
 
 </details>
@@ -232,10 +232,10 @@ split = gen.generate_split(
     n_states=5,
     trap=True,
 )
-gen.save_split(split, "seeds/mealy_test.json")
+gen.save_split(split, "dataset/mealy_test.json")
 
 # Build HuggingFace Dataset
-dataset = gen.build_dataset("seeds/mealy_test.json", "test", feedback=True)
+dataset = gen.build_dataset("dataset/mealy_test.json", "test", feedback=True)
 ```
 
 </details>
@@ -252,14 +252,14 @@ dataset = gen.build_dataset("seeds/mealy_test.json", "test", feedback=True)
 # Basic evaluation
 dedeucerl-eval \
   --skin mealy \
-  --split seeds/mealy_smoke.json \
+  --split dataset/smoke/mealy_smoke.json \
   --model openai:gpt-4o \
   --out results.jsonl
 
 # With all options
 dedeucerl-eval \
   --skin apienv \
-  --split seeds/apienv_smoke.json \
+  --split dataset/smoke/apienv_smoke.json \
   --model anthropic:claude-3-opus-20240229 \
   --rollouts 3 \
   --feedback \
@@ -286,7 +286,7 @@ from dedeucerl.adapters import get_adapter
 
 # Setup
 generator = TaskGenerator(MealyEnv)
-dataset = generator.build_dataset("seeds/mealy_smoke.json", "dev", feedback=True)
+dataset = generator.build_dataset("dataset/smoke/mealy_smoke.json", "dev", feedback=True)
 rubric = make_rubric()
 env = MealyEnv(dataset=dataset, rubric=rubric, feedback=True, max_turns=30)
 
@@ -426,7 +426,7 @@ Run evaluations on a skin.
 ```bash
 dedeucerl-eval \
   --skin mealy \
-  --split seeds/mealy_smoke.json \
+  --split dataset/smoke/mealy_smoke.json \
   --model openai:gpt-4o \
   --rollouts 1 \
   --out results.jsonl \
@@ -445,16 +445,16 @@ dedeucerl-eval \
 
 ```bash
 # Run only specific episodes
-dedeucerl-eval --skin mealy --split seeds/mealy_smoke.json --episodes 0-4,9
+dedeucerl-eval --skin mealy --split dataset/smoke/mealy_smoke.json --episodes 0-4,9
 
 # Run shard 1 of 4 (0-based shard index)
-dedeucerl-eval --skin mealy --split seeds/mealy_smoke.json --shard 1/4
+dedeucerl-eval --skin mealy --split dataset/smoke/mealy_smoke.json --shard 1/4
 ```
 
 **Resume runs (split-aware):**
 
 ```bash
-dedeucerl-eval --skin mealy --split seeds/mealy_smoke.json --resume --out results.jsonl
+dedeucerl-eval --skin mealy --split dataset/smoke/mealy_smoke.json --resume --out results.jsonl
 ```
 
 Resume is safe across restarts because each result line includes a `split_hash` derived from the split file + subset.
@@ -468,7 +468,16 @@ dedeucerl-eval-parallel \
   --jobs 4 \
   --out results.jsonl \
   --skin mealy \
-  --split seeds/mealy_smoke.json \
+  --split dataset/smoke/mealy_smoke.json \
+  --model openai:gpt-4o
+
+# With merged per-turn trace output (one JSONL stream for all shards)
+dedeucerl-eval-parallel \
+  --jobs 4 \
+  --out results.jsonl \
+  --trace-out traces.jsonl \
+  --skin mealy \
+  --split dataset/smoke/mealy_smoke.json \
   --model openai:gpt-4o
 ```
 
@@ -556,7 +565,7 @@ DedeuceRL/
 │   ├── adapters/   # OpenAI, Anthropic, Gemini
 │   ├── cli/        # dedeucerl-eval, dedeucerl-generate, etc.
 │   └── utils/      # RNG utilities
-├── seeds/          # Pre-built evaluation splits
+├── dataset/        # Pre-built evaluation splits (smoke/, leaderboard/, difficulty_scale/)
 └── tests/          # pytest suite
 ```
 

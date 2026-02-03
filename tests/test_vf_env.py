@@ -8,7 +8,7 @@ import verifiers as vf
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SPLIT_PATH = REPO_ROOT / "seeds" / "mealy_smoke.json"
+SPLIT_PATH = REPO_ROOT / "dataset" / "smoke" / "mealy_smoke.json"
 
 
 def test_vf_env_load_with_seeds() -> None:

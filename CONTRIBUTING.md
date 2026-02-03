@@ -70,10 +70,10 @@ Include in your PR description:
 Recommended workflow:
 ```bash
 # 1) Use an existing split, or generate one
-dedeucerl-generate --skin mealy --seeds 0-99 --budget 100 --n-states 4 --no-trap -o seeds/mealy_n4_b100_test.json
+dedeucerl-generate --skin mealy --seeds 0-99 --budget 100 --n-states 4 --no-trap -o dataset/mealy_n4_b100_test.json
 
-# 2) Run eval
-dedeucerl-eval --skin mealy --split seeds/mealy_n4_b100_test.json --model openai:gpt-4o --out results/mealy_gpt4o.jsonl
+# Run evaluation
+dedeucerl-eval --skin mealy --split dataset/mealy_n4_b100_test.json --model openai:gpt-4o --out results/mealy_gpt4o.jsonl
 
 # 3) Aggregate
 dedeucerl-aggregate results/mealy_gpt4o.jsonl --format markdown
