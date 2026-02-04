@@ -593,7 +593,11 @@ pytest tests/ --cov=dedeucerl
 | Variable | Description |
 |----------|-------------|
 | `OPENAI_API_KEY` | API key for OpenAI models |
-| `OPENAI_BASE_URL` | Base URL for OpenAI-compatible APIs (e.g., OpenRouter) |
+| `OPENAI_BASE_URL` | Base URL override for `openai:*` (OpenAI-compatible endpoints) |
+| `OPENROUTER_API_KEY` | API key for OpenRouter (`openrouter:*`) |
+| `OPENROUTER_BASE_URL` | Base URL for OpenRouter (default: `https://openrouter.ai/api/v1`) |
+| `OPENROUTER_HTTP_REFERER` | Optional OpenRouter header `HTTP-Referer` |
+| `OPENROUTER_X_TITLE` | Optional OpenRouter header `X-Title` |
 | `ANTHROPIC_API_KEY` | API key for Anthropic models |
 | `GOOGLE_API_KEY` | API key for Google Gemini models |
 

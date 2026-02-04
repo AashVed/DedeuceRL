@@ -267,7 +267,7 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help=(
             "Reasoning/thinking effort level. "
-            "OpenAI (reasoning.effort): none|minimal|low|medium|high|xhigh (model-dependent). "
+            "OpenAI/OpenRouter (reasoning.effort): none|minimal|low|medium|high|xhigh (model-dependent). "
             "Gemini 3 (thinkingLevel): minimal|low|medium|high (model-dependent). "
             "If set, dedeucerl-eval can perform a cheap 1-token probe call to validate support."
         ),
@@ -673,7 +673,18 @@ async def main_async():
     if effort is not None:
         provider, model_id = decompose_model_spec(args.model)
 
-        if provider in ("openai", "openrouter"):
+        if provider == "openai":
+            allowed = {"none", "minimal", "low", "medium", "high", "xhigh"}
+            if effort not in allowed:
+                print(
+                    f"Error: invalid --effort {effort!r} for provider '{provider}'. "
+                    f"Expected one of: {sorted(allowed)}",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+        elif provider == "openrouter":
+            # OpenRouter normalizes provider-specific reasoning knobs behind a unified `reasoning`
+            # object. Keep a permissive vocabulary here and let the provider probe validate.
             allowed = {"none", "minimal", "low", "medium", "high", "xhigh"}
             if effort not in allowed:
                 print(
