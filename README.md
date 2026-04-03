@@ -12,8 +12,8 @@
 ```bash
 pip install dedeucerl
 dedeucerl-generate --skin mealy --seeds 0-4 --budget 25 --n-states 3 -o tasks.json
-dedeucerl-eval --skin mealy --split tasks.json --model heuristic:none --out results.jsonl
-dedeucerl-eval-parallel --jobs 4 --out results.jsonl --skin mealy --split tasks.json --model heuristic:none  # merged output
+dedeucerl-eval --skin mealy --split tasks.json --model heuristic:none --out results.jsonl  # offline smoke baseline
+dedeucerl-eval-parallel --jobs 4 --out results.jsonl --skin mealy --split tasks.json --model heuristic:none  # merged output; offline smoke baseline
 ```
 
 ---
@@ -98,9 +98,9 @@ dedeucerl-aggregate results.jsonl --format markdown
 
 **Output:**
 ```
-| Model         | Episodes | Success Rate | Trap Rate | Avg Queries | Avg Reward |
-|---------------|----------|--------------|-----------|-------------|------------|
-| openai:gpt-4o | 10       | 40.0%        | 20.0%     | 18.2        | 0.318      |
+| Model | Skin | Split Hash | Runs | Episodes | Success Rate | Trap Rate | Avg Queries | Avg Reward |
+|-------|------|------------|------|----------|--------------|-----------|-------------|------------|
+| openai:gpt-4o | mealy | abc123... | 10 | 10 | 40.0% | 20.0% | 18.2 | 0.318 |
 ```
 
 
@@ -315,7 +315,7 @@ dedeucerl-aggregate results.jsonl --format json -o summary.json
 dedeucerl-aggregate results/*.jsonl --format markdown
 ```
 
-Output columns: `model`, `n_episodes`, `success_rate`, `trap_rate`, `avg_queries`, `avg_reward`
+Output columns: `model`, `skin`, `split_hash`, `n_runs`, `n_episodes`, `success_rate`, `trap_rate`, `avg_queries`, `avg_reward`
 
 ---
 
@@ -339,6 +339,8 @@ uv add 'verifiers[rl]'
 # Run training (create your own config based on verifiers docs)
 uv run vf-rl @ your-config.toml
 ```
+
+`dedeucerl-eval` reports the fixed benchmark reward. RL training can use `reward_mode="train_dense"` or other training-oriented rubric settings via `dedeucerl.vf_env` / `vf-rl`.
 
 Sample configs are included in `configs/vf-rl/` (e.g., `dedeucerl-mealy.toml`).
 
@@ -441,6 +443,8 @@ dedeucerl-eval \
 
 **Optional tracing:** `--trace-out traces.jsonl` writes per-turn JSONL events (model replies + tool results) for debugging.
 
+**Reward contract:** `dedeucerl-eval` reports the benchmark reward used for comparable evaluation runs. This is intentionally separate from training-oriented reward modes such as `reward_mode="train_dense"` used with `vf-rl`.
+
 **Episode selection + sharding:**
 
 ```bash
@@ -492,6 +496,8 @@ dedeucerl-aggregate results.jsonl --format csv > leaderboard.csv
 dedeucerl-aggregate results.jsonl --format markdown
 dedeucerl-aggregate results.jsonl --format json -o results_summary.json
 ```
+
+Rows are grouped by `model + skin + split_hash`. Aggregated metrics remain run-level, while `n_episodes` reports the number of unique episode indices in each group.
 
 ### `dedeucerl-train`
 

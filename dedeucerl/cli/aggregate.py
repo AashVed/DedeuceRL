@@ -6,7 +6,7 @@ import argparse
 import json
 import sys
 from collections import defaultdict
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 
 def parse_args() -> argparse.Namespace:
@@ -51,61 +51,82 @@ def load_results(paths: List[str]) -> List[Dict[str, Any]]:
     return results
 
 
-def aggregate_by_model(results: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
-    """Aggregate results by model."""
-    by_model: Dict[str, List[Dict]] = defaultdict(list)
+def aggregate_by_group(results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Aggregate results by model + skin + split hash."""
+    by_group: Dict[Tuple[str, str, str], List[Dict[str, Any]]] = defaultdict(list)
     for r in results:
-        model = r.get("model", "unknown")
-        by_model[model].append(r)
+        model = str(r.get("model", "unknown"))
+        skin = str(r.get("skin", "unknown"))
+        split_hash = str(r.get("split_hash", "unknown"))
+        by_group[(model, skin, split_hash)].append(r)
 
-    aggregated = {}
-    for model, runs in by_model.items():
-        n = len(runs)
+    aggregated: List[Dict[str, Any]] = []
+    for model, skin, split_hash in sorted(by_group.keys()):
+        runs = by_group[(model, skin, split_hash)]
+        n_runs = len(runs)
+        episode_ids = {
+            int(r["episode_idx"])
+            for r in runs
+            if "episode_idx" in r and isinstance(r.get("episode_idx"), int)
+        }
+        n_episodes = len(episode_ids)
         n_success = sum(1 for r in runs if r.get("ok", False))
         n_trap = sum(1 for r in runs if r.get("trap_hit", False))
         total_queries = sum(r.get("queries_used", 0) for r in runs)
         total_reward = sum(r.get("reward", 0) for r in runs)
 
-        aggregated[model] = {
-            "model": model,
-            "n_episodes": n,
-            "success_rate": n_success / n if n > 0 else 0,
-            "trap_rate": n_trap / n if n > 0 else 0,
-            "avg_queries": total_queries / n if n > 0 else 0,
-            "avg_reward": total_reward / n if n > 0 else 0,
-        }
+        aggregated.append(
+            {
+                "model": model,
+                "skin": skin,
+                "split_hash": split_hash,
+                "n_runs": n_runs,
+                "n_episodes": n_episodes,
+                "success_rate": n_success / n_runs if n_runs > 0 else 0,
+                "trap_rate": n_trap / n_runs if n_runs > 0 else 0,
+                "avg_queries": total_queries / n_runs if n_runs > 0 else 0,
+                "avg_reward": total_reward / n_runs if n_runs > 0 else 0,
+            }
+        )
 
     return aggregated
 
 
-def format_csv(aggregated: Dict[str, Dict[str, Any]]) -> str:
+def format_csv(aggregated: List[Dict[str, Any]]) -> str:
     """Format aggregated results as CSV."""
-    lines = ["model,n_episodes,success_rate,trap_rate,avg_queries,avg_reward"]
-    for model in sorted(aggregated.keys()):
-        a = aggregated[model]
+    lines = [
+        "model,skin,split_hash,n_runs,n_episodes,success_rate,trap_rate,avg_queries,avg_reward"
+    ]
+    for a in aggregated:
         lines.append(
-            f"{a['model']},{a['n_episodes']},"
+            f"{a['model']},{a['skin']},{a['split_hash']},{a['n_runs']},{a['n_episodes']},"
             f"{a['success_rate']:.4f},{a['trap_rate']:.4f},"
             f"{a['avg_queries']:.2f},{a['avg_reward']:.4f}"
         )
     return "\n".join(lines)
 
 
-def format_json(aggregated: Dict[str, Dict[str, Any]]) -> str:
+def format_json(aggregated: List[Dict[str, Any]]) -> str:
     """Format aggregated results as JSON."""
-    return json.dumps(list(aggregated.values()), indent=2)
+    return json.dumps(aggregated, indent=2)
 
 
-def format_markdown(aggregated: Dict[str, Dict[str, Any]]) -> str:
+def format_markdown(aggregated: List[Dict[str, Any]]) -> str:
     """Format aggregated results as Markdown table."""
     lines = [
-        "| Model | Episodes | Success Rate | Trap Rate | Avg Queries | Avg Reward |",
-        "|-------|----------|--------------|-----------|-------------|------------|",
+        (
+            "| Model | Skin | Split Hash | Runs | Episodes | Success Rate | Trap Rate | "
+            "Avg Queries | Avg Reward |"
+        ),
+        (
+            "|-------|------|------------|------|----------|--------------|-----------|"
+            "-------------|------------|"
+        ),
     ]
-    for model in sorted(aggregated.keys()):
-        a = aggregated[model]
+    for a in aggregated:
         lines.append(
-            f"| {a['model']} | {a['n_episodes']} | "
+            f"| {a['model']} | {a['skin']} | {a['split_hash']} | {a['n_runs']} | "
+            f"{a['n_episodes']} | "
             f"{a['success_rate']:.1%} | {a['trap_rate']:.1%} | "
             f"{a['avg_queries']:.1f} | {a['avg_reward']:.3f} |"
         )
@@ -124,7 +145,7 @@ def main():
         sys.exit(1)
 
     # Aggregate
-    aggregated = aggregate_by_model(results)
+    aggregated = aggregate_by_group(results)
 
     # Format output
     if args.format == "csv":
