@@ -39,7 +39,7 @@ def parse_args(argv: Optional[List[str]] = None) -> tuple[argparse.Namespace, Li
         epilog="""
 Examples:
   # Generate 100 Mealy tasks
-  dedeucerl-generate --skin mealy --seeds 0-99 --budget 25 --n-states 3 -o seeds/mealy_dev.json
+  dedeucerl-generate --skin mealy --seeds 0-99 --budget 25 --n-states 3 -o dataset/mealy_dev.json
 
   # Generate Protocol tasks with custom endpoints
   dedeucerl-generate --skin protocol --seeds 0-49 --budget 30 --n-endpoints 4 --n-states 3
@@ -80,7 +80,7 @@ Examples:
         "--out",
         default=None,
         type=str,
-        help="Output JSON file (default: seeds/<skin>_<subset>.json).",
+        help="Output JSON file (default: dataset/<skin>_<subset>.json).",
     )
     parser.add_argument(
         "--no-trap",
@@ -309,7 +309,7 @@ def main():
     # Determine output path
     out_path = args.out
     if out_path is None:
-        out_path = f"seeds/{args.skin}_{args.subset}.json"
+        out_path = f"dataset/{args.skin}_{args.subset}.json"
 
     # Save
     generator.save_split(split, out_path)

@@ -12,7 +12,9 @@
               "/login",
               "/logout",
               "/verify_email",
-              "/select_org"
+              "/select_org",
+              "/upgrade_plan",
+              "/projects"
             ],
             "methods": [
               "GET",
@@ -42,6 +44,20 @@
                   "orgA",
                   "orgB",
                   "invalid"
+                ]
+              },
+              "/upgrade_plan": {
+                "POST": [
+                  "to_pro",
+                  "noop"
+                ]
+              },
+              "/projects": {
+                "GET": [
+                  "list"
+                ],
+                "POST": [
+                  "create"
                 ]
               }
             },
@@ -97,6 +113,36 @@
                       "NeedAuth"
                     ],
                     "invalid": [
+                      0,
+                      401,
+                      "NeedAuth"
+                    ]
+                  }
+                },
+                "/upgrade_plan": {
+                  "POST": {
+                    "to_pro": [
+                      0,
+                      401,
+                      "NeedAuth"
+                    ],
+                    "noop": [
+                      0,
+                      401,
+                      "NeedAuth"
+                    ]
+                  }
+                },
+                "/projects": {
+                  "GET": {
+                    "list": [
+                      0,
+                      401,
+                      "NeedAuth"
+                    ]
+                  },
+                  "POST": {
+                    "create": [
                       0,
                       401,
                       "NeedAuth"
@@ -160,6 +206,36 @@
                       "NeedVerify"
                     ]
                   }
+                },
+                "/upgrade_plan": {
+                  "POST": {
+                    "to_pro": [
+                      1,
+                      403,
+                      "NeedVerify"
+                    ],
+                    "noop": [
+                      1,
+                      403,
+                      "NeedVerify"
+                    ]
+                  }
+                },
+                "/projects": {
+                  "GET": {
+                    "list": [
+                      1,
+                      403,
+                      "NeedVerify"
+                    ]
+                  },
+                  "POST": {
+                    "create": [
+                      1,
+                      403,
+                      "NeedVerify"
+                    ]
+                  }
                 }
               },
               "2": {
@@ -218,6 +294,36 @@
                       "BadOrg"
                     ]
                   }
+                },
+                "/upgrade_plan": {
+                  "POST": {
+                    "to_pro": [
+                      2,
+                      201,
+                      "UpgradeOk"
+                    ],
+                    "noop": [
+                      2,
+                      200,
+                      "UpgradeOk"
+                    ]
+                  }
+                },
+                "/projects": {
+                  "GET": {
+                    "list": [
+                      2,
+                      403,
+                      "NeedOrg"
+                    ]
+                  },
+                  "POST": {
+                    "create": [
+                      2,
+                      403,
+                      "NeedOrg"
+                    ]
+                  }
                 }
               },
               "3": {
@@ -274,6 +380,36 @@
                       3,
                       422,
                       "BadOrg"
+                    ]
+                  }
+                },
+                "/upgrade_plan": {
+                  "POST": {
+                    "to_pro": [
+                      3,
+                      201,
+                      "UpgradeOk"
+                    ],
+                    "noop": [
+                      3,
+                      200,
+                      "UpgradeOk"
+                    ]
+                  }
+                },
+                "/projects": {
+                  "GET": {
+                    "list": [
+                      3,
+                      200,
+                      "ProjectsListA"
+                    ]
+                  },
+                  "POST": {
+                    "create": [
+                      3,
+                      201,
+                      "ProjectCreatedFree"
                     ]
                   }
                 }
@@ -293,7 +429,9 @@
               "/login",
               "/logout",
               "/verify_email",
-              "/select_org"
+              "/select_org",
+              "/upgrade_plan",
+              "/projects"
             ],
             "methods": [
               "GET",
@@ -323,6 +461,20 @@
                   "orgA",
                   "orgB",
                   "invalid"
+                ]
+              },
+              "/upgrade_plan": {
+                "POST": [
+                  "to_pro",
+                  "noop"
+                ]
+              },
+              "/projects": {
+                "GET": [
+                  "list"
+                ],
+                "POST": [
+                  "create"
                 ]
               }
             },
@@ -378,6 +530,36 @@
                       "NeedAuth"
                     ],
                     "invalid": [
+                      0,
+                      401,
+                      "NeedAuth"
+                    ]
+                  }
+                },
+                "/upgrade_plan": {
+                  "POST": {
+                    "to_pro": [
+                      0,
+                      401,
+                      "NeedAuth"
+                    ],
+                    "noop": [
+                      0,
+                      401,
+                      "NeedAuth"
+                    ]
+                  }
+                },
+                "/projects": {
+                  "GET": {
+                    "list": [
+                      0,
+                      401,
+                      "NeedAuth"
+                    ]
+                  },
+                  "POST": {
+                    "create": [
                       0,
                       401,
                       "NeedAuth"
@@ -441,6 +623,36 @@
                       "NeedVerify"
                     ]
                   }
+                },
+                "/upgrade_plan": {
+                  "POST": {
+                    "to_pro": [
+                      1,
+                      403,
+                      "NeedVerify"
+                    ],
+                    "noop": [
+                      1,
+                      403,
+                      "NeedVerify"
+                    ]
+                  }
+                },
+                "/projects": {
+                  "GET": {
+                    "list": [
+                      1,
+                      403,
+                      "NeedVerify"
+                    ]
+                  },
+                  "POST": {
+                    "create": [
+                      1,
+                      403,
+                      "NeedVerify"
+                    ]
+                  }
                 }
               },
               "2": {
@@ -499,6 +711,36 @@
                       "BadOrg"
                     ]
                   }
+                },
+                "/upgrade_plan": {
+                  "POST": {
+                    "to_pro": [
+                      2,
+                      201,
+                      "UpgradeOk"
+                    ],
+                    "noop": [
+                      2,
+                      200,
+                      "UpgradeOk"
+                    ]
+                  }
+                },
+                "/projects": {
+                  "GET": {
+                    "list": [
+                      2,
+                      403,
+                      "NeedOrg"
+                    ]
+                  },
+                  "POST": {
+                    "create": [
+                      2,
+                      403,
+                      "NeedOrg"
+                    ]
+                  }
                 }
               },
               "3": {
@@ -555,6 +797,36 @@
                       3,
                       422,
                       "BadOrg"
+                    ]
+                  }
+                },
+                "/upgrade_plan": {
+                  "POST": {
+                    "to_pro": [
+                      3,
+                      201,
+                      "UpgradeOk"
+                    ],
+                    "noop": [
+                      3,
+                      200,
+                      "UpgradeOk"
+                    ]
+                  }
+                },
+                "/projects": {
+                  "GET": {
+                    "list": [
+                      3,
+                      200,
+                      "ProjectsListA"
+                    ]
+                  },
+                  "POST": {
+                    "create": [
+                      3,
+                      201,
+                      "ProjectCreatedFree"
                     ]
                   }
                 }
@@ -574,7 +846,9 @@
               "/login",
               "/logout",
               "/verify_email",
-              "/select_org"
+              "/select_org",
+              "/upgrade_plan",
+              "/projects"
             ],
             "methods": [
               "GET",
@@ -604,6 +878,20 @@
                   "orgA",
                   "orgB",
                   "invalid"
+                ]
+              },
+              "/upgrade_plan": {
+                "POST": [
+                  "to_pro",
+                  "noop"
+                ]
+              },
+              "/projects": {
+                "GET": [
+                  "list"
+                ],
+                "POST": [
+                  "create"
                 ]
               }
             },
@@ -659,6 +947,36 @@
                       "NeedAuth"
                     ],
                     "invalid": [
+                      0,
+                      401,
+                      "NeedAuth"
+                    ]
+                  }
+                },
+                "/upgrade_plan": {
+                  "POST": {
+                    "to_pro": [
+                      0,
+                      401,
+                      "NeedAuth"
+                    ],
+                    "noop": [
+                      0,
+                      401,
+                      "NeedAuth"
+                    ]
+                  }
+                },
+                "/projects": {
+                  "GET": {
+                    "list": [
+                      0,
+                      401,
+                      "NeedAuth"
+                    ]
+                  },
+                  "POST": {
+                    "create": [
                       0,
                       401,
                       "NeedAuth"
@@ -722,6 +1040,36 @@
                       "NeedVerify"
                     ]
                   }
+                },
+                "/upgrade_plan": {
+                  "POST": {
+                    "to_pro": [
+                      1,
+                      403,
+                      "NeedVerify"
+                    ],
+                    "noop": [
+                      1,
+                      403,
+                      "NeedVerify"
+                    ]
+                  }
+                },
+                "/projects": {
+                  "GET": {
+                    "list": [
+                      1,
+                      403,
+                      "NeedVerify"
+                    ]
+                  },
+                  "POST": {
+                    "create": [
+                      1,
+                      403,
+                      "NeedVerify"
+                    ]
+                  }
                 }
               },
               "2": {
@@ -780,6 +1128,36 @@
                       "BadOrg"
                     ]
                   }
+                },
+                "/upgrade_plan": {
+                  "POST": {
+                    "to_pro": [
+                      2,
+                      201,
+                      "UpgradeOk"
+                    ],
+                    "noop": [
+                      2,
+                      200,
+                      "UpgradeOk"
+                    ]
+                  }
+                },
+                "/projects": {
+                  "GET": {
+                    "list": [
+                      2,
+                      403,
+                      "NeedOrg"
+                    ]
+                  },
+                  "POST": {
+                    "create": [
+                      2,
+                      403,
+                      "NeedOrg"
+                    ]
+                  }
                 }
               },
               "3": {
@@ -836,6 +1214,36 @@
                       3,
                       422,
                       "BadOrg"
+                    ]
+                  }
+                },
+                "/upgrade_plan": {
+                  "POST": {
+                    "to_pro": [
+                      3,
+                      201,
+                      "UpgradeOk"
+                    ],
+                    "noop": [
+                      3,
+                      200,
+                      "UpgradeOk"
+                    ]
+                  }
+                },
+                "/projects": {
+                  "GET": {
+                    "list": [
+                      3,
+                      200,
+                      "ProjectsListA"
+                    ]
+                  },
+                  "POST": {
+                    "create": [
+                      3,
+                      201,
+                      "ProjectCreatedFree"
                     ]
                   }
                 }
@@ -855,7 +1263,9 @@
               "/login",
               "/logout",
               "/verify_email",
-              "/select_org"
+              "/select_org",
+              "/upgrade_plan",
+              "/projects"
             ],
             "methods": [
               "GET",
@@ -885,6 +1295,20 @@
                   "orgA",
                   "orgB",
                   "invalid"
+                ]
+              },
+              "/upgrade_plan": {
+                "POST": [
+                  "to_pro",
+                  "noop"
+                ]
+              },
+              "/projects": {
+                "GET": [
+                  "list"
+                ],
+                "POST": [
+                  "create"
                 ]
               }
             },
@@ -940,6 +1364,36 @@
                       "NeedAuth"
                     ],
                     "invalid": [
+                      0,
+                      401,
+                      "NeedAuth"
+                    ]
+                  }
+                },
+                "/upgrade_plan": {
+                  "POST": {
+                    "to_pro": [
+                      0,
+                      401,
+                      "NeedAuth"
+                    ],
+                    "noop": [
+                      0,
+                      401,
+                      "NeedAuth"
+                    ]
+                  }
+                },
+                "/projects": {
+                  "GET": {
+                    "list": [
+                      0,
+                      401,
+                      "NeedAuth"
+                    ]
+                  },
+                  "POST": {
+                    "create": [
                       0,
                       401,
                       "NeedAuth"
@@ -1003,6 +1457,36 @@
                       "NeedVerify"
                     ]
                   }
+                },
+                "/upgrade_plan": {
+                  "POST": {
+                    "to_pro": [
+                      1,
+                      403,
+                      "NeedVerify"
+                    ],
+                    "noop": [
+                      1,
+                      403,
+                      "NeedVerify"
+                    ]
+                  }
+                },
+                "/projects": {
+                  "GET": {
+                    "list": [
+                      1,
+                      403,
+                      "NeedVerify"
+                    ]
+                  },
+                  "POST": {
+                    "create": [
+                      1,
+                      403,
+                      "NeedVerify"
+                    ]
+                  }
                 }
               },
               "2": {
@@ -1061,6 +1545,36 @@
                       "BadOrg"
                     ]
                   }
+                },
+                "/upgrade_plan": {
+                  "POST": {
+                    "to_pro": [
+                      2,
+                      201,
+                      "UpgradeOk"
+                    ],
+                    "noop": [
+                      2,
+                      200,
+                      "UpgradeOk"
+                    ]
+                  }
+                },
+                "/projects": {
+                  "GET": {
+                    "list": [
+                      2,
+                      403,
+                      "NeedOrg"
+                    ]
+                  },
+                  "POST": {
+                    "create": [
+                      2,
+                      403,
+                      "NeedOrg"
+                    ]
+                  }
                 }
               },
               "3": {
@@ -1117,6 +1631,36 @@
                       3,
                       422,
                       "BadOrg"
+                    ]
+                  }
+                },
+                "/upgrade_plan": {
+                  "POST": {
+                    "to_pro": [
+                      3,
+                      201,
+                      "UpgradeOk"
+                    ],
+                    "noop": [
+                      3,
+                      200,
+                      "UpgradeOk"
+                    ]
+                  }
+                },
+                "/projects": {
+                  "GET": {
+                    "list": [
+                      3,
+                      200,
+                      "ProjectsListA"
+                    ]
+                  },
+                  "POST": {
+                    "create": [
+                      3,
+                      201,
+                      "ProjectCreatedFree"
                     ]
                   }
                 }
@@ -1136,7 +1680,9 @@
               "/login",
               "/logout",
               "/verify_email",
-              "/select_org"
+              "/select_org",
+              "/upgrade_plan",
+              "/projects"
             ],
             "methods": [
               "GET",
@@ -1166,6 +1712,20 @@
                   "orgA",
                   "orgB",
                   "invalid"
+                ]
+              },
+              "/upgrade_plan": {
+                "POST": [
+                  "to_pro",
+                  "noop"
+                ]
+              },
+              "/projects": {
+                "GET": [
+                  "list"
+                ],
+                "POST": [
+                  "create"
                 ]
               }
             },
@@ -1221,6 +1781,36 @@
                       "NeedAuth"
                     ],
                     "invalid": [
+                      0,
+                      401,
+                      "NeedAuth"
+                    ]
+                  }
+                },
+                "/upgrade_plan": {
+                  "POST": {
+                    "to_pro": [
+                      0,
+                      401,
+                      "NeedAuth"
+                    ],
+                    "noop": [
+                      0,
+                      401,
+                      "NeedAuth"
+                    ]
+                  }
+                },
+                "/projects": {
+                  "GET": {
+                    "list": [
+                      0,
+                      401,
+                      "NeedAuth"
+                    ]
+                  },
+                  "POST": {
+                    "create": [
                       0,
                       401,
                       "NeedAuth"
@@ -1284,6 +1874,36 @@
                       "NeedVerify"
                     ]
                   }
+                },
+                "/upgrade_plan": {
+                  "POST": {
+                    "to_pro": [
+                      1,
+                      403,
+                      "NeedVerify"
+                    ],
+                    "noop": [
+                      1,
+                      403,
+                      "NeedVerify"
+                    ]
+                  }
+                },
+                "/projects": {
+                  "GET": {
+                    "list": [
+                      1,
+                      403,
+                      "NeedVerify"
+                    ]
+                  },
+                  "POST": {
+                    "create": [
+                      1,
+                      403,
+                      "NeedVerify"
+                    ]
+                  }
                 }
               },
               "2": {
@@ -1340,6 +1960,36 @@
                       2,
                       422,
                       "BadOrg"
+                    ]
+                  }
+                },
+                "/upgrade_plan": {
+                  "POST": {
+                    "to_pro": [
+                      2,
+                      201,
+                      "UpgradeOk"
+                    ],
+                    "noop": [
+                      2,
+                      200,
+                      "UpgradeOk"
+                    ]
+                  }
+                },
+                "/projects": {
+                  "GET": {
+                    "list": [
+                      2,
+                      403,
+                      "NeedOrg"
+                    ]
+                  },
+                  "POST": {
+                    "create": [
+                      2,
+                      403,
+                      "NeedOrg"
                     ]
                   }
                 }
@@ -1400,6 +2050,36 @@
                       "BadOrg"
                     ]
                   }
+                },
+                "/upgrade_plan": {
+                  "POST": {
+                    "to_pro": [
+                      3,
+                      201,
+                      "UpgradeOk"
+                    ],
+                    "noop": [
+                      3,
+                      200,
+                      "UpgradeOk"
+                    ]
+                  }
+                },
+                "/projects": {
+                  "GET": {
+                    "list": [
+                      3,
+                      200,
+                      "ProjectsListA"
+                    ]
+                  },
+                  "POST": {
+                    "create": [
+                      3,
+                      201,
+                      "ProjectCreatedFree"
+                    ]
+                  }
                 }
               }
             }
@@ -1410,6 +2090,6 @@
     ],
     "trap": false,
     "n_states": 4,
-    "n_endpoints": 4
+    "n_endpoints": 6
   }
 }

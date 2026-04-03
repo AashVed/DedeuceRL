@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.7] - 2026-04-03
+
+### Changed
+- `dedeucerl-aggregate` now groups results by model + skin + split hash, and reports both run count (`n_runs`) and unique episode count (`n_episodes`).
+- Documentation now clarifies that `dedeucerl-eval` reports the benchmark reward, while RL training may use `reward_mode="train_dense"` or other training-oriented rubric settings.
+
 ## [1.0.6] - 2026-02-01
 
 ### Added
