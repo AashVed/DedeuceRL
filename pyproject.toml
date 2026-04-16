@@ -1,8 +1,8 @@
 [project]
 name = "dedeucerl"
-version = "1.0.7"
+version = "1.0.8"
 description = "A modular framework for active system identification benchmarks"
-readme = "README.md"
+readme = {file = "README_PYPI.md", content-type = "text/markdown"}
 license = {file = "LICENSE"}
 authors = [
     {name = "Vedansh"},

@@ -8,18 +8,24 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Tuple
 
+from dedeucerl.skins import MealyEnv
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SPLIT_PATH = REPO_ROOT / "dataset" / "smoke" / "mealy_smoke.json"
 
 
-def _run_module(module: str, args: List[str]) -> None:
-    result = subprocess.run(
+def _run_module_result(module: str, args: List[str]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
         [sys.executable, "-m", module, *args],
         capture_output=True,
         text=True,
         cwd=str(REPO_ROOT),
     )
+
+
+def _run_module(module: str, args: List[str]) -> None:
+    result = _run_module_result(module, args)
     assert result.returncode == 0, (
         f"{module} failed\nstdout:\n{result.stdout}\n\nstderr:\n{result.stderr}"
     )
@@ -52,6 +58,28 @@ def _index_results(rows: List[Dict]) -> Dict[Tuple[int, int], Dict]:
     return {(r["episode_idx"], r.get("rollout", 0)): r for r in rows}
 
 
+def _write_mixed_mealy_split(path: Path) -> None:
+    split = {
+        "dev": {
+            "budget": 5,
+            "trap": False,
+            "items": [
+                {
+                    "seed": 101,
+                    "budget": 5,
+                    "system": MealyEnv.generate_system_static(seed=101, n_states=2, trap=False),
+                },
+                {
+                    "seed": 202,
+                    "budget": 12,
+                    "system": MealyEnv.generate_system_static(seed=202, n_states=5, trap=False),
+                },
+            ],
+        }
+    }
+    path.write_text(json.dumps(split))
+
+
 def test_episode_selection_and_resume(tmp_path: Path) -> None:
     _, n_items = _get_subset_and_count()
     spec, expected = _selection_spec(n_items)
@@ -82,6 +110,39 @@ def test_episode_selection_and_resume(tmp_path: Path) -> None:
     _run_module("dedeucerl.cli.eval", args + ["--resume"])
     rows_after = _load_results(out_path)
     assert len(rows_after) == len(rows)
+
+
+def test_resume_respects_eval_config_hash(tmp_path: Path) -> None:
+    out_path = tmp_path / "selection.jsonl"
+    base_args = [
+        "--skin",
+        "mealy",
+        "--split",
+        str(SPLIT_PATH),
+        "--model",
+        "heuristic:none",
+        "--episodes",
+        "0",
+        "--rollouts",
+        "1",
+        "--out",
+        str(out_path),
+    ]
+
+    _run_module("dedeucerl.cli.eval", base_args + ["--temperature", "0.0"])
+    rows = _load_results(out_path)
+    assert len(rows) == 1
+
+    _run_module("dedeucerl.cli.eval", base_args + ["--temperature", "0.0", "--resume"])
+    rows_same = _load_results(out_path)
+    assert len(rows_same) == 1
+
+    _run_module("dedeucerl.cli.eval", base_args + ["--temperature", "0.7", "--resume"])
+    rows_diff = _load_results(out_path)
+    assert len(rows_diff) == 2
+    hashes = {row["eval_config_hash"] for row in rows_diff}
+    assert len(hashes) == 2
+    assert rows_diff[0]["eval_config_hash"] != rows_diff[1]["eval_config_hash"]
 
 
 def test_sharding_partitions_full_set(tmp_path: Path) -> None:
@@ -143,6 +204,125 @@ def test_parallel_matches_sequential(tmp_path: Path) -> None:
     assert seq_map.keys() == par_map.keys()
     for k in seq_map.keys():
         assert seq_map[k] == par_map[k]
+
+
+def test_parallel_matches_sequential_for_multiple_rollouts(tmp_path: Path) -> None:
+    seq_out = tmp_path / "sequential.jsonl"
+    par_out = tmp_path / "parallel.jsonl"
+
+    base_args = [
+        "--skin",
+        "mealy",
+        "--split",
+        str(SPLIT_PATH),
+        "--model",
+        "heuristic:none",
+        "--rollouts",
+        "2",
+    ]
+
+    _run_module("dedeucerl.cli.eval", base_args + ["--out", str(seq_out)])
+    _run_module(
+        "dedeucerl.cli.eval_parallel",
+        ["--jobs", "2", "--out", str(par_out), *base_args],
+    )
+
+    seq_map = _index_results(_load_results(seq_out))
+    par_map = _index_results(_load_results(par_out))
+
+    assert seq_map.keys() == par_map.keys()
+    for k in seq_map.keys():
+        assert seq_map[k] == par_map[k]
+
+
+def test_parallel_resume_uses_merged_output(tmp_path: Path) -> None:
+    out_path = tmp_path / "parallel.jsonl"
+    base_args = [
+        "--jobs",
+        "2",
+        "--out",
+        str(out_path),
+        "--skin",
+        "mealy",
+        "--split",
+        str(SPLIT_PATH),
+        "--model",
+        "heuristic:none",
+        "--rollouts",
+        "1",
+    ]
+
+    _run_module("dedeucerl.cli.eval_parallel", base_args)
+    rows = _load_results(out_path)
+
+    _run_module("dedeucerl.cli.eval_parallel", base_args + ["--resume"])
+    rows_after = _load_results(out_path)
+
+    assert rows_after == rows
+
+
+def test_parallel_resume_fills_only_missing_rows(tmp_path: Path) -> None:
+    out_path = tmp_path / "parallel.jsonl"
+    base_args = [
+        "--jobs",
+        "2",
+        "--out",
+        str(out_path),
+        "--skin",
+        "mealy",
+        "--split",
+        str(SPLIT_PATH),
+        "--model",
+        "heuristic:none",
+        "--rollouts",
+        "2",
+    ]
+
+    _run_module("dedeucerl.cli.eval_parallel", base_args)
+    rows = _load_results(out_path)
+    assert rows
+
+    trimmed_rows = rows[:-1]
+    out_path.write_text("".join(json.dumps(row) + "\n" for row in trimmed_rows))
+
+    _run_module("dedeucerl.cli.eval_parallel", base_args + ["--resume"])
+    resumed_rows = _load_results(out_path)
+
+    resumed_map = _index_results(resumed_rows)
+    full_map = _index_results(rows)
+    assert resumed_map == full_map
+
+
+def test_mixed_difficulty_split_uses_per_episode_limits(tmp_path: Path) -> None:
+    split_path = tmp_path / "mixed_mealy.json"
+    seq_out = tmp_path / "mixed_seq.jsonl"
+    par_out = tmp_path / "mixed_par.jsonl"
+    _write_mixed_mealy_split(split_path)
+
+    base_args = [
+        "--skin",
+        "mealy",
+        "--split",
+        str(split_path),
+        "--model",
+        "heuristic:none",
+        "--rollouts",
+        "1",
+    ]
+
+    _run_module("dedeucerl.cli.eval", base_args + ["--out", str(seq_out)])
+    seq_rows = _load_results(seq_out)
+    seq_rows_by_seed = {row["seed"]: row for row in seq_rows}
+    assert seq_rows_by_seed[101]["queries_used"] == 5
+    assert seq_rows_by_seed[202]["queries_used"] == 12
+
+    _run_module(
+        "dedeucerl.cli.eval_parallel",
+        ["--jobs", "2", "--out", str(par_out), *base_args],
+    )
+    par_map = _index_results(_load_results(par_out))
+    seq_map = _index_results(seq_rows)
+    assert par_map == seq_map
 
 
 def test_parallel_trace_out(tmp_path: Path) -> None:

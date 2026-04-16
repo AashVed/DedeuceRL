@@ -80,6 +80,7 @@ HF_DATA/
 # Documentation build
 docs/_build/
 site/
+tex/
 
 # Ruff cache
 .ruff_cache/

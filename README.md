@@ -9,6 +9,19 @@
 [![Dataset](https://img.shields.io/badge/🤗_Dataset-DedeuceRL-yellow)](https://huggingface.co/datasets/comfortably-dumb/DedeuceRL)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18280315.svg)](https://doi.org/10.5281/zenodo.18280315)
 
+## Mealy Difficulty Scaling
+
+![Mealy difficulty scaling](docs/assets/mealy-difficulty-scaling.svg)
+
+Benchmark score shown above: `success_rate` from `dedeucerl-aggregate` on the Mealy skin with feedback enabled, `32` held-out episodes per split, and `1` rollout per model/split.
+
+| Model | 2 states (`b40`) | 3 states (`b40`) | 4 states (`b60`) |
+|-------|------------------:|------------------:|------------------:|
+| `openai:gpt-5-mini` | 78.1% | 28.1% | 9.4% |
+| `openrouter:google/gemini-3-flash-preview` (`--effort high`) | 43.8% | 3.1% | 0.0%* |
+
+\* The 4-state Gemini 3 Flash point is shown as `0.0%` for the README summary; no JSONL artifact is currently saved for that run.
+
 ```bash
 pip install dedeucerl
 dedeucerl-generate --skin mealy --seeds 0-4 --budget 25 --n-states 3 -o tasks.json
@@ -37,6 +50,7 @@ DedeuceRL benchmarks this capability by requiring agents to:
 
 ## Table of Contents
 
+- [Mealy Difficulty Scaling](#mealy-difficulty-scaling)
 - [Installation](#installation)
 - [Quickstart](#quickstart)
 - [Available Skins](#available-skins)
@@ -315,7 +329,7 @@ dedeucerl-aggregate results.jsonl --format json -o summary.json
 dedeucerl-aggregate results/*.jsonl --format markdown
 ```
 
-Output columns: `model`, `skin`, `split_hash`, `n_runs`, `n_episodes`, `success_rate`, `trap_rate`, `avg_queries`, `avg_reward`
+Output columns include run-level metrics plus additive benchmark fields such as `eval_config_hash`, `max_complete_k`, `pass_at_1`, and `pass_at_3` (when enough rollouts are present).
 
 ---
 
@@ -461,7 +475,7 @@ dedeucerl-eval --skin mealy --split dataset/smoke/mealy_smoke.json --shard 1/4
 dedeucerl-eval --skin mealy --split dataset/smoke/mealy_smoke.json --resume --out results.jsonl
 ```
 
-Resume is safe across restarts because each result line includes a `split_hash` derived from the split file + subset.
+Resume is safe across restarts because each result line includes both `split_hash` and `eval_config_hash`, so stochastic decoding settings are tracked as part of the evaluation identity.
 
 ### `dedeucerl-eval-parallel`
 
@@ -485,7 +499,7 @@ dedeucerl-eval-parallel \
   --model openai:gpt-4o
 ```
 
-This writes a single merged JSONL to `--out`. Per-shard part files are deleted by default (use `--keep-parts` to keep them). You can then run `dedeucerl-aggregate results.jsonl` as usual.
+This writes a single merged JSONL to `--out`. Per-shard part files are deleted by default (use `--keep-parts` to keep them). `--resume` reconstructs shard-local resume state from the merged output, so you do not need to preserve old shard part files.
 
 ### `dedeucerl-aggregate`
 
@@ -497,7 +511,7 @@ dedeucerl-aggregate results.jsonl --format markdown
 dedeucerl-aggregate results.jsonl --format json -o results_summary.json
 ```
 
-Rows are grouped by `model + skin + split_hash`. Aggregated metrics remain run-level, while `n_episodes` reports the number of unique episode indices in each group.
+Rows are grouped by `model + skin + split_hash + eval_config_hash`. Aggregated output keeps run-level metrics and also reports additive per-episode benchmark fields such as `max_complete_k`, `pass_at_1`, and `pass_at_3` when rollout depth is sufficient.
 
 ### `dedeucerl-train`
 

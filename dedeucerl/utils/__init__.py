@@ -26,7 +26,14 @@ from .errors import (
     error_skin_not_found,
     error_split_not_found,
 )
-from .episodes import parse_index_spec, parse_shard, apply_shard, compute_split_hash
+from .episodes import (
+    parse_index_spec,
+    parse_shard,
+    apply_shard,
+    compute_split_hash,
+    normalize_eval_config,
+    compute_eval_config_hash,
+)
 
 __all__ = [
     # RNG
@@ -59,4 +66,6 @@ __all__ = [
     "parse_shard",
     "apply_shard",
     "compute_split_hash",
+    "normalize_eval_config",
+    "compute_eval_config_hash",
 ]

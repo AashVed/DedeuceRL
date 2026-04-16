@@ -41,6 +41,7 @@ class TestAggregate:
                 "model": "test:model",
                 "skin": "mealy",
                 "split_hash": "hash-a",
+                "eval_config_hash": "cfg-a",
                 "episode_idx": 0,
                 "rollout": 0,
                 "ok": True,
@@ -52,6 +53,7 @@ class TestAggregate:
                 "model": "test:model",
                 "skin": "mealy",
                 "split_hash": "hash-a",
+                "eval_config_hash": "cfg-a",
                 "episode_idx": 1,
                 "rollout": 0,
                 "ok": False,
@@ -70,10 +72,12 @@ class TestAggregate:
         )
         assert result.returncode == 0
         assert (
-            "model,skin,split_hash,n_runs,n_episodes,success_rate,trap_rate,avg_queries,avg_reward"
+            "model,skin,split_hash,eval_config_hash,n_runs,n_episodes,success_rate,trap_rate,"
+            "avg_queries,avg_reward,max_complete_k,n_episode_success_at_1,pass_at_1,"
+            "n_episode_success_at_3,pass_at_3"
             in result.stdout
         )
-        assert "test:model,mealy,hash-a,2,2,0.5000,0.5000,12.50,0.4500" in result.stdout
+        assert "test:model,mealy,hash-a,cfg-a,2,2,0.5000,0.5000,12.50,0.4500,1,1,0.5000,," in result.stdout
 
     def test_aggregate_json_output(self, tmp_path):
         """Test JSON output format."""
@@ -83,6 +87,7 @@ class TestAggregate:
                 "model": "test:model",
                 "skin": "mealy",
                 "split_hash": "hash-a",
+                "eval_config_hash": "cfg-a",
                 "episode_idx": 0,
                 "rollout": 0,
                 "ok": True,
@@ -112,8 +117,12 @@ class TestAggregate:
         assert data[0]["model"] == "test:model"
         assert data[0]["skin"] == "mealy"
         assert data[0]["split_hash"] == "hash-a"
+        assert data[0]["eval_config_hash"] == "cfg-a"
         assert data[0]["n_runs"] == 1
         assert data[0]["n_episodes"] == 1
+        assert data[0]["max_complete_k"] == 1
+        assert data[0]["pass_at_1"] == 1.0
+        assert data[0]["pass_at_3"] is None
 
     def test_aggregate_markdown_output(self, tmp_path):
         """Test Markdown output format."""
@@ -123,6 +132,7 @@ class TestAggregate:
                 "model": "test:model",
                 "skin": "mealy",
                 "split_hash": "hash-a",
+                "eval_config_hash": "cfg-a",
                 "episode_idx": 0,
                 "rollout": 0,
                 "ok": True,
@@ -147,7 +157,7 @@ class TestAggregate:
             cwd=str(REPO_ROOT),
         )
         assert result.returncode == 0
-        assert "| Model | Skin | Split Hash | Runs | Episodes |" in result.stdout
+        assert "| Model | Skin | Split Hash | Eval Config | Runs | Episodes |" in result.stdout
         assert "test:model" in result.stdout
 
     def test_aggregate_splits_mixed_groups(self, tmp_path):
@@ -158,6 +168,7 @@ class TestAggregate:
                 "model": "test:model",
                 "skin": "mealy",
                 "split_hash": "hash-a",
+                "eval_config_hash": "cfg-a",
                 "episode_idx": 0,
                 "rollout": 0,
                 "ok": True,
@@ -169,6 +180,7 @@ class TestAggregate:
                 "model": "test:model",
                 "skin": "apienv",
                 "split_hash": "hash-b",
+                "eval_config_hash": "cfg-a",
                 "episode_idx": 0,
                 "rollout": 0,
                 "ok": False,
@@ -189,9 +201,9 @@ class TestAggregate:
 
         data = json.loads(result.stdout)
         assert len(data) == 2
-        assert {(row["model"], row["skin"], row["split_hash"]) for row in data} == {
-            ("test:model", "mealy", "hash-a"),
-            ("test:model", "apienv", "hash-b"),
+        assert {(row["model"], row["skin"], row["split_hash"], row["eval_config_hash"]) for row in data} == {
+            ("test:model", "mealy", "hash-a", "cfg-a"),
+            ("test:model", "apienv", "hash-b", "cfg-a"),
         }
 
     def test_aggregate_multi_rollout_counts_runs_and_unique_episodes(self, tmp_path):
@@ -202,6 +214,7 @@ class TestAggregate:
                 "model": "test:model",
                 "skin": "mealy",
                 "split_hash": "hash-a",
+                "eval_config_hash": "cfg-a",
                 "episode_idx": 3,
                 "rollout": 0,
                 "ok": True,
@@ -213,6 +226,7 @@ class TestAggregate:
                 "model": "test:model",
                 "skin": "mealy",
                 "split_hash": "hash-a",
+                "eval_config_hash": "cfg-a",
                 "episode_idx": 3,
                 "rollout": 1,
                 "ok": False,
@@ -236,6 +250,264 @@ class TestAggregate:
         assert data[0]["n_runs"] == 2
         assert data[0]["n_episodes"] == 1
         assert data[0]["success_rate"] == 0.5
+        assert data[0]["max_complete_k"] == 2
+        assert data[0]["pass_at_1"] == 1.0
+        assert data[0]["pass_at_3"] is None
+
+    def test_aggregate_groups_by_eval_config_hash(self, tmp_path):
+        """Distinct eval configs should not collapse into one aggregate row."""
+        results_file = tmp_path / "results.jsonl"
+        results = [
+            {
+                "model": "test:model",
+                "skin": "mealy",
+                "split_hash": "hash-a",
+                "eval_config_hash": "cfg-a",
+                "episode_idx": 0,
+                "rollout": 0,
+                "ok": True,
+                "trap_hit": False,
+                "queries_used": 10,
+                "reward": 0.9,
+            },
+            {
+                "model": "test:model",
+                "skin": "mealy",
+                "split_hash": "hash-a",
+                "eval_config_hash": "cfg-b",
+                "episode_idx": 0,
+                "rollout": 0,
+                "ok": False,
+                "trap_hit": False,
+                "queries_used": 10,
+                "reward": 0.0,
+            },
+        ]
+        self._write_results(results_file, results)
+
+        result = subprocess.run(
+            [sys.executable, "-m", "dedeucerl.cli.aggregate", str(results_file), "--format", "json"],
+            capture_output=True,
+            text=True,
+            cwd=str(REPO_ROOT),
+        )
+        assert result.returncode == 0
+        data = json.loads(result.stdout)
+        assert len(data) == 2
+        assert {row["eval_config_hash"] for row in data} == {"cfg-a", "cfg-b"}
+
+    def test_aggregate_computes_pass_at_k(self, tmp_path):
+        """Pass@k should be derived from rollout prefixes per episode."""
+        results_file = tmp_path / "results.jsonl"
+        results = [
+            {
+                "model": "test:model",
+                "skin": "mealy",
+                "split_hash": "hash-a",
+                "eval_config_hash": "cfg-a",
+                "episode_idx": 0,
+                "rollout": 0,
+                "ok": False,
+                "trap_hit": False,
+                "queries_used": 10,
+                "reward": 0.0,
+            },
+            {
+                "model": "test:model",
+                "skin": "mealy",
+                "split_hash": "hash-a",
+                "eval_config_hash": "cfg-a",
+                "episode_idx": 0,
+                "rollout": 1,
+                "ok": True,
+                "trap_hit": False,
+                "queries_used": 11,
+                "reward": 0.9,
+            },
+            {
+                "model": "test:model",
+                "skin": "mealy",
+                "split_hash": "hash-a",
+                "eval_config_hash": "cfg-a",
+                "episode_idx": 0,
+                "rollout": 2,
+                "ok": True,
+                "trap_hit": False,
+                "queries_used": 12,
+                "reward": 0.9,
+            },
+            {
+                "model": "test:model",
+                "skin": "mealy",
+                "split_hash": "hash-a",
+                "eval_config_hash": "cfg-a",
+                "episode_idx": 1,
+                "rollout": 0,
+                "ok": False,
+                "trap_hit": False,
+                "queries_used": 10,
+                "reward": 0.0,
+            },
+            {
+                "model": "test:model",
+                "skin": "mealy",
+                "split_hash": "hash-a",
+                "eval_config_hash": "cfg-a",
+                "episode_idx": 1,
+                "rollout": 1,
+                "ok": False,
+                "trap_hit": False,
+                "queries_used": 10,
+                "reward": 0.0,
+            },
+            {
+                "model": "test:model",
+                "skin": "mealy",
+                "split_hash": "hash-a",
+                "eval_config_hash": "cfg-a",
+                "episode_idx": 1,
+                "rollout": 2,
+                "ok": False,
+                "trap_hit": False,
+                "queries_used": 10,
+                "reward": 0.0,
+            },
+        ]
+        self._write_results(results_file, results)
+
+        result = subprocess.run(
+            [sys.executable, "-m", "dedeucerl.cli.aggregate", str(results_file), "--format", "json"],
+            capture_output=True,
+            text=True,
+            cwd=str(REPO_ROOT),
+        )
+        assert result.returncode == 0
+        data = json.loads(result.stdout)
+        assert len(data) == 1
+        assert data[0]["max_complete_k"] == 3
+        assert data[0]["n_episode_success_at_1"] == 0
+        assert data[0]["pass_at_1"] == 0.0
+        assert data[0]["n_episode_success_at_3"] == 1
+        assert data[0]["pass_at_3"] == 0.5
+
+    def test_aggregate_rejects_duplicate_rollout_rows(self, tmp_path):
+        """Duplicate (episode_idx, rollout) rows should fail clearly."""
+        results_file = tmp_path / "results.jsonl"
+        results = [
+            {
+                "model": "test:model",
+                "skin": "mealy",
+                "split_hash": "hash-a",
+                "eval_config_hash": "cfg-a",
+                "episode_idx": 0,
+                "rollout": 0,
+                "ok": True,
+                "trap_hit": False,
+                "queries_used": 10,
+                "reward": 0.9,
+            },
+            {
+                "model": "test:model",
+                "skin": "mealy",
+                "split_hash": "hash-a",
+                "eval_config_hash": "cfg-a",
+                "episode_idx": 0,
+                "rollout": 0,
+                "ok": False,
+                "trap_hit": False,
+                "queries_used": 11,
+                "reward": 0.0,
+            },
+        ]
+        self._write_results(results_file, results)
+
+        result = subprocess.run(
+            [sys.executable, "-m", "dedeucerl.cli.aggregate", str(results_file), "--format", "json"],
+            capture_output=True,
+            text=True,
+            cwd=str(REPO_ROOT),
+        )
+        assert result.returncode != 0
+        assert "Duplicate result row" in result.stderr
+
+    def test_aggregate_incomplete_rollouts_report_max_complete_k(self, tmp_path):
+        """Pass@k should only be reported up to the shared rollout depth."""
+        results_file = tmp_path / "results.jsonl"
+        results = [
+            {
+                "model": "test:model",
+                "skin": "mealy",
+                "split_hash": "hash-a",
+                "eval_config_hash": "cfg-a",
+                "episode_idx": 0,
+                "rollout": 0,
+                "ok": False,
+                "trap_hit": False,
+                "queries_used": 10,
+                "reward": 0.0,
+            },
+            {
+                "model": "test:model",
+                "skin": "mealy",
+                "split_hash": "hash-a",
+                "eval_config_hash": "cfg-a",
+                "episode_idx": 0,
+                "rollout": 1,
+                "ok": False,
+                "trap_hit": False,
+                "queries_used": 10,
+                "reward": 0.0,
+            },
+            {
+                "model": "test:model",
+                "skin": "mealy",
+                "split_hash": "hash-a",
+                "eval_config_hash": "cfg-a",
+                "episode_idx": 0,
+                "rollout": 2,
+                "ok": True,
+                "trap_hit": False,
+                "queries_used": 10,
+                "reward": 0.9,
+            },
+            {
+                "model": "test:model",
+                "skin": "mealy",
+                "split_hash": "hash-a",
+                "eval_config_hash": "cfg-a",
+                "episode_idx": 1,
+                "rollout": 0,
+                "ok": False,
+                "trap_hit": False,
+                "queries_used": 10,
+                "reward": 0.0,
+            },
+            {
+                "model": "test:model",
+                "skin": "mealy",
+                "split_hash": "hash-a",
+                "eval_config_hash": "cfg-a",
+                "episode_idx": 1,
+                "rollout": 1,
+                "ok": True,
+                "trap_hit": False,
+                "queries_used": 10,
+                "reward": 0.9,
+            },
+        ]
+        self._write_results(results_file, results)
+
+        result = subprocess.run(
+            [sys.executable, "-m", "dedeucerl.cli.aggregate", str(results_file), "--format", "json"],
+            capture_output=True,
+            text=True,
+            cwd=str(REPO_ROOT),
+        )
+        assert result.returncode == 0
+        data = json.loads(result.stdout)
+        assert len(data) == 1
+        assert data[0]["max_complete_k"] == 2
+        assert data[0]["pass_at_3"] is None
 
 
 class TestSkinRegistry:
