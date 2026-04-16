@@ -23,6 +23,8 @@ from dedeucerl.utils import (
     parse_shard,
     apply_shard,
     compute_split_hash,
+    normalize_eval_config,
+    compute_eval_config_hash,
 )
 
 
@@ -150,6 +152,33 @@ def _domain_spec_from_answer(SkinClass, answer_data: Dict[str, Any]):
         )
 
     return SkinClass.domain_spec(budget=budget, trap=trap)
+
+
+def _derive_episode_max_turns(SkinClass, answer_data: Dict[str, Any], *, feedback: bool) -> int:
+    """Derive max_turns for one episode from its own answer payload."""
+    spec = _domain_spec_from_answer(SkinClass, answer_data)
+    budget = int(answer_data.get("budget", 25))
+    n_states = int(getattr(spec, "n_states", 5))
+    return TaskGenerator(SkinClass).derive_max_turns(
+        budget=budget,
+        n_states=n_states,
+        feedback=feedback,
+    )
+
+
+def _derive_dataset_max_turns(dataset, SkinClass, *, feedback: bool) -> int:
+    """Compute a safe env-level max_turns across the whole dataset."""
+    if len(dataset) <= 0:
+        return int(SkinClass.config.max_turns)
+
+    return max(
+        _derive_episode_max_turns(
+            SkinClass,
+            json.loads(item["answer"]),
+            feedback=feedback,
+        )
+        for item in dataset
+    )
 
 
 def _load_dotenv(path: Path) -> None:
@@ -328,6 +357,11 @@ async def run_episode(
     # Build tool schemas from the skin DomainSpec (enums, structured args).
     answer_data = json.loads(state.get("answer", "{}"))
     spec = _domain_spec_from_answer(env.__class__, answer_data)
+    episode_max_turns = _derive_episode_max_turns(
+        env.__class__,
+        answer_data,
+        feedback=env.feedback_enabled,
+    )
     tool_schemas = spec.get_tools()
 
     # Trace helper
@@ -354,18 +388,16 @@ async def run_episode(
         {
             "event": "episode_start",
             "budget_init": state.get("budget_init", None),
-            "max_turns": env.max_turns,
+            "max_turns": episode_max_turns,
         }
     )
 
     # Evaluation loop
     turn = 0
-    max_turns = env.max_turns
-
     while (
         not bool(state.get("done", False))
         and int(state.get("budget", 0)) > 0
-        and len(state.get("trajectory", [])) < max_turns
+        and len(state.get("trajectory", [])) < episode_max_turns
     ):
         turn += 1
 
@@ -734,17 +766,15 @@ async def main_async():
     dataset = generator.build_dataset(args.split, subset, feedback=args.feedback)
 
     split_hash = compute_split_hash(args.split, subset, args.feedback)
+    eval_config = normalize_eval_config(
+        temperature=args.temperature,
+        effort=effort,
+    )
+    eval_config_hash = compute_eval_config_hash(eval_config)
 
     # Create environment
     rubric = make_rubric()
-
-    first_answer = json.loads(dataset[0]["answer"])
-    spec0 = _domain_spec_from_answer(SkinClass, first_answer)
-    max_turns = generator.derive_max_turns(
-        budget=int(first_answer.get("budget", 25)),
-        n_states=int(getattr(spec0, "n_states", 5)),
-        feedback=args.feedback,
-    )
+    max_turns = _derive_dataset_max_turns(dataset, SkinClass, feedback=args.feedback)
 
     env = SkinClass(
         dataset=dataset,
@@ -836,12 +866,21 @@ async def main_async():
                     and row.get("model") == args.model
                     and row.get("skin", args.skin) == args.skin
                 ):
+                    row_eval_hash = row.get("eval_config_hash")
+                    if row_eval_hash is None:
+                        print(
+                            "Error: --resume requires matching existing results to include "
+                            "eval_config_hash. Re-run without --resume or use a new output file.",
+                            file=sys.stderr,
+                        )
+                        sys.exit(1)
                     try:
                         ep = int(row.get("episode_idx"))
                         ro = int(row.get("rollout", 0))
                     except (TypeError, ValueError):
                         continue
-                    done.add((ep, ro))
+                    if row_eval_hash == eval_config_hash:
+                        done.add((ep, ro))
 
         if None in existing_split_hashes:
             print(
@@ -910,12 +949,15 @@ async def main_async():
                         "model": args.model,
                         "skin": args.skin,
                         "split_hash": split_hash,
+                        "eval_config_hash": eval_config_hash,
                     },
                 )
                 result["rollout"] = rollout
                 result["model"] = args.model
                 result["skin"] = args.skin
                 result["split_hash"] = split_hash
+                result["eval_config"] = eval_config
+                result["eval_config_hash"] = eval_config_hash
                 f.write(json.dumps(result) + "\n")
                 f.flush()
 
@@ -941,6 +983,7 @@ async def main_async():
                 row.get("model") == args.model
                 and row.get("split_hash") == split_hash
                 and row.get("skin", args.skin) == args.skin
+                and row.get("eval_config_hash") == eval_config_hash
             ):
                 results.append(row)
 

@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import subprocess
 import sys
 from pathlib import Path
 from typing import List
+
+from dedeucerl.utils import apply_shard
 
 
 def _default_jobs() -> int:
@@ -24,6 +27,46 @@ def _part_path(out_path: Path, idx: int) -> Path:
     suffix = out_path.suffix
     stem = out_path.stem if suffix else out_path.name
     return out_path.with_name(f"{stem}.part{idx}{suffix}")
+
+
+def _load_jsonl_rows(path: Path, *, kind: str) -> List[dict]:
+    rows: List[dict] = []
+    with open(path, "r") as f:
+        for line_no, line in enumerate(f, start=1):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError as e:
+                raise ValueError(f"Malformed {kind} JSONL in {path} at line {line_no}: {e}") from e
+            if not isinstance(row, dict):
+                raise ValueError(f"Malformed {kind} JSONL in {path} at line {line_no}: row is not an object")
+            rows.append(row)
+    return rows
+
+
+def _row_matches_shard(row: dict, *, shard_index: int, shard_count: int) -> bool:
+    try:
+        episode_idx = int(row["episode_idx"])
+    except (KeyError, TypeError, ValueError) as e:
+        raise ValueError(f"Resume row is missing a valid episode_idx: {row!r}") from e
+    return bool(apply_shard([episode_idx], shard_index, shard_count))
+
+
+def _rebuild_resume_parts(
+    merged_path: Path,
+    part_paths: List[Path],
+    *,
+    kind: str,
+) -> None:
+    rows = _load_jsonl_rows(merged_path, kind=kind)
+    shard_count = len(part_paths)
+    for shard_index, part_path in enumerate(part_paths):
+        with open(part_path, "w") as part_f:
+            for row in rows:
+                if _row_matches_shard(row, shard_index=shard_index, shard_count=shard_count):
+                    part_f.write(json.dumps(row) + "\n")
 
 
 def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
@@ -64,6 +107,7 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
     )
     args, eval_args = parser.parse_known_args(argv)
     args.eval_args = eval_args
+    args.resume = "--resume" in eval_args
     return args
 
 
@@ -112,6 +156,7 @@ def main():
     procs = []
     part_paths = []
     trace_part_paths: List[Path] = []
+    proc_specs: List[tuple[List[str], dict]] = []
 
     for i in range(jobs):
         part_path = _part_path(out_path, i)
@@ -141,10 +186,26 @@ def main():
             print(" ".join(cmd))
             continue
 
-        procs.append(subprocess.Popen(cmd, env=env))
+        proc_specs.append((cmd, env))
 
     if args.dry_run:
         return
+
+    if args.resume and out_path.exists():
+        try:
+            _rebuild_resume_parts(out_path, part_paths, kind="results")
+        except ValueError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+        if trace_out_path is not None and trace_out_path.exists():
+            try:
+                _rebuild_resume_parts(trace_out_path, trace_part_paths, kind="trace")
+            except ValueError as e:
+                print(f"Error: {e}", file=sys.stderr)
+                sys.exit(1)
+
+    for cmd, env in proc_specs:
+        procs.append(subprocess.Popen(cmd, env=env))
 
     failed = False
     for p in procs:

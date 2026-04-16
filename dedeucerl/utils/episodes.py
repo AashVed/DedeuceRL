@@ -1,10 +1,11 @@
-"""Helpers for episode selection, sharding, and split hashing."""
+"""Helpers for episode selection, sharding, split hashing, and eval identity."""
 
 from __future__ import annotations
 
 import hashlib
+import json
 from pathlib import Path
-from typing import Iterable, List, Tuple
+from typing import Any, Dict, Iterable, List, Tuple
 
 
 def parse_index_spec(spec: str | None, *, max_len: int) -> List[int]:
@@ -83,3 +84,21 @@ def compute_split_hash(split_path: str | Path, subset: str, feedback: bool) -> s
     h.update(payload)
     h.update(f"|subset={subset}|feedback={int(bool(feedback))}".encode("utf-8"))
     return h.hexdigest()
+
+
+def normalize_eval_config(
+    *,
+    temperature: float | None,
+    effort: str | None,
+) -> Dict[str, Any]:
+    """Build a stable, machine-readable eval config object for result provenance."""
+    return {
+        "temperature": None if temperature is None else float(temperature),
+        "effort": None if effort is None else str(effort),
+    }
+
+
+def compute_eval_config_hash(config: Dict[str, Any]) -> str:
+    """Compute a stable hash for a normalized eval config."""
+    payload = json.dumps(config, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()

@@ -151,18 +151,19 @@ class TaskGenerator:
         for item in items:
             seed = item["seed"]
             system = item["system"]
+            item_budget = int(item.get("budget", budget))
 
             # Answer contains full system data for _configure_from_metadata.
             # The structure varies by skin, so we pass the entire system dict.
             answer_data = {
                 "seed": seed,
-                "budget": budget,
+                "budget": item_budget,
                 **system,  # Include all system fields (skin-specific)
             }
 
             # Build observation using per-episode answer payload.
             # This is the most robust way to ensure vocab/tool enums match the episode.
-            obs = self._build_observation_from_answer(answer_data, cfg)
+            obs = self._build_observation_from_answer(answer_data, cfg, budget=item_budget)
 
             # Build prompt from skin template
             prompt = self.skin_cls.get_prompt_template(obs, feedback=feedback)
@@ -175,7 +176,11 @@ class TaskGenerator:
         return Dataset.from_dict({"prompt": prompts, "answer": answers})
 
     def _build_observation_from_answer(
-        self, answer_data: Dict[str, Any], cfg: Dict[str, Any]
+        self,
+        answer_data: Dict[str, Any],
+        cfg: Dict[str, Any],
+        *,
+        budget: int | None = None,
     ) -> Dict[str, Any]:
         """Build the observation dict shown to the agent using domain_spec.
 
@@ -186,7 +191,7 @@ class TaskGenerator:
         If the skin defines `domain_params_from_answer(answer_data)`, we use it.
         Otherwise, we fall back to split config only.
         """
-        budget = int(cfg.get("budget", self.skin_config.default_budget))
+        budget = int(cfg.get("budget", self.skin_config.default_budget) if budget is None else budget)
         trap = bool(cfg.get("trap", True))
 
         # Never forward large/non-param fields like items.
