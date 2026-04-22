@@ -1,0 +1,7 @@
+model = "openai/gpt-4.1-mini"
+num_examples = 10
+
+[[eval]]
+env_id = "dedeucerl.vf_env"
+env_args = { skin = "mealy", split_path = "dataset/smoke/mealy_smoke.json", subset = "dev", feedback = true }
+rollouts_per_example = 1

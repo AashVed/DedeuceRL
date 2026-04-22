@@ -632,7 +632,7 @@ async def run_episode(
     import inspect
 
     # Keep CLI eval on the fixed benchmark rubric. RL training may use a different
-    # reward mode (for example train_dense) via vf-rl / dedeucerl.vf_env.
+    # reward mode (for example train_dense) via Prime configs / dedeucerl.vf_env.
     rubric = make_rubric()
 
     reward_funcs = getattr(rubric, "reward_funcs", None)

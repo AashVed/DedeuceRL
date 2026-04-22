@@ -6,9 +6,8 @@ import json
 from abc import abstractmethod
 from typing import Any, Dict, List, Optional
 
-from verifiers.envs.stateful_tool_env import StatefulToolEnv
+import verifiers as vf
 from verifiers.types import State
-from verifiers import Rubric
 from datasets import Dataset
 
 from .config import SkinConfig
@@ -23,7 +22,7 @@ from dedeucerl.utils import (
 from dedeucerl.utils.schema import validate_jsonschema
 
 
-class HiddenSystemEnv(StatefulToolEnv):
+class HiddenSystemEnv(vf.StatefulToolEnv):
     """
     Base class for active system identification environments.
 
@@ -43,7 +42,7 @@ class HiddenSystemEnv(StatefulToolEnv):
     def __init__(
         self,
         dataset: Dataset,
-        rubric: Rubric,
+        rubric: vf.Rubric,
         *,
         feedback: bool = False,
         max_turns: Optional[int] = None,

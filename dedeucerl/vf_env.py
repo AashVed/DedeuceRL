@@ -1,16 +1,10 @@
 """Verifiers-compatible environment entrypoint for any DedeuceRL skin.
 
-Usage in vf-rl config:
+Usage in a Prime config:
 
-  [env]
+  [[env]]
   id = "dedeucerl.vf_env"
-
-  [env.args]
-  skin = "mealy"
-  seeds = [0, 1, 2, 3, 4]
-  budget = 25
-  n_states = 4
-  feedback = true
+  args = { skin = "mealy", seeds = [0, 1, 2, 3, 4], budget = 25, n_states = 4, feedback = true }
 """
 
 from __future__ import annotations

@@ -1,0 +1,15 @@
+model = "Qwen/Qwen3-4B-Instruct-2507"
+max_steps = 100
+batch_size = 64
+rollouts_per_example = 4
+
+[sampling]
+max_tokens = 768
+
+[[env]]
+id = "dedeucerl.vf_env"
+args = { skin = "mealy", seeds = [0, 1, 2, 3, 4], budget = 25, n_states = 4, subset = "train", feedback = true, reward_mode = "train_dense" }
+
+[wandb]
+project = "dedeucerl"
+name = "qwen3-4b-i-mealy-local"

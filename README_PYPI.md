@@ -20,10 +20,16 @@ Full repository README, benchmark visuals, and documentation:
 pip install dedeucerl
 pip install "dedeucerl[openai]"
 pip install "dedeucerl[all]"
-pip install "dedeucerl[rl]"
 ```
 
-Requirements: Python 3.10+, `verifiers>=0.1.9`, `datasets>=2.0`.
+Requirements: Python 3.10+, `verifiers>=0.1.12,<0.2`, `datasets>=3.0,<4.7.0`.
+
+Prime's training CLI is installed separately:
+
+```bash
+uv tool install prime
+prime lab setup
+```
 
 ## Quickstart
 
@@ -47,7 +53,13 @@ dedeucerl-aggregate results.jsonl --format markdown
 - `dedeucerl-eval-parallel`
 - `dedeucerl-aggregate`
 - `dedeucerl-selfcheck`
-- `dedeucerl-train`
+
+## RL Training
+
+Use Prime for RL training and evaluation against `dedeucerl.vf_env`.
+
+The repository includes hosted-training, self-managed `prime-rl`, and eval config examples under `configs/`.
+See the full README on GitHub for the complete workflow, checked-in example files, and the distinction between hosted `prime rl run` and self-managed `prime-rl`.
 
 ## Development
 
