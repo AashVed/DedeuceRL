@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.9] - 2026-04-22
+
+### Changed
+- DedeuceRL is now Prime-first for RL workflows. Hosted training uses `prime rl run`, and self-managed training uses `prime-rl`, both through `dedeucerl.vf_env` instead of the removed legacy trainer wrapper.
+- Package dependency floors now target the current stable Prime ecosystem: `verifiers>=0.1.12,<0.2` and `datasets>=3.0,<4.7.0`.
+- Training documentation now reflects the current Prime workflow for both hosted training and self-managed Prime-compatible development.
+
+### Removed
+- The `dedeucerl-train` CLI and its checked-in legacy training templates.
+- The `dedeucerl[rl]` extra. Prime should be installed separately via `uv tool install prime`.
+
 ## [1.0.8] - 2026-04-05
 
 ### Added
@@ -38,8 +49,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Verifiers-compatible environment entrypoint (`dedeucerl.vf_env`) to train any skin via a single `env.id`.
 - Seed-based dataset generation for training without requiring split files.
-- Sample `vf-rl` configs under `configs/vf-rl/`.
-- `dedeucerl-train` CLI to generate and optionally run `vf-rl` configs.
+- Sample legacy training configs.
+- Legacy training CLI for config generation and launch.
 - Training-friendly `reward_mode="train_dense"` rubric (generic, skin-agnostic).
 
 ### Changed

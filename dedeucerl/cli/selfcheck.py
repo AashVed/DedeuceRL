@@ -51,9 +51,9 @@ def check_imports() -> List[str]:
         errors.append(f"Failed to import adapters: {e}")
 
     try:
-        from verifiers.envs.stateful_tool_env import StatefulToolEnv
+        import verifiers as vf
 
-        _ = StatefulToolEnv
+        _ = vf.StatefulToolEnv
     except ImportError as e:
         errors.append(f"Failed to import verifiers: {e}")
 

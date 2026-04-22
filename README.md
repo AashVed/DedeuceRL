@@ -71,7 +71,13 @@ pip install dedeucerl                   # Core
 pip install "dedeucerl[openai]"         # + OpenAI adapter
 pip install "dedeucerl[all]"            # All providers
 pip install "dedeucerl[gemini]"         # + Gemini adapter (google-genai; supported)
-pip install "dedeucerl[rl]"             # Verifiers RL trainer extras
+```
+
+Install Prime separately for RL training and `prime eval` workflows:
+
+```bash
+uv tool install prime
+prime lab setup
 ```
 
 <details>
@@ -85,7 +91,7 @@ pip install -e ".[dev]"
 
 </details>
 
-**Requirements:** Python 3.10+ · `verifiers>=0.1.9` · `datasets>=2.0`
+**Requirements:** Python 3.10+ · `verifiers>=0.1.12,<0.2` · `datasets>=3.0,<4.7.0`
 
 ---
 
@@ -342,61 +348,85 @@ Public task splits (MIT-licensed) are available at:
 
 ## Training with RL
 
-DedeuceRL environments inherit from [`verifiers.StatefulToolEnv`](https://github.com/PrimeIntellect-ai/verifiers), making them directly compatible with RL training frameworks.
+DedeuceRL environments inherit from [`verifiers.StatefulToolEnv`](https://github.com/PrimeIntellect-ai/verifiers) and are intended to be trained with Prime. `dedeucerl.vf_env` is the stable environment entrypoint for both hosted Prime training and self-managed `prime-rl` runs.
 
-### Quick Start with vf.RLTrainer
+### Prime Setup
 
 ```bash
-# Install verifiers with RL support
-uv add 'verifiers[rl]'
-
-# Run training (create your own config based on verifiers docs)
-uv run vf-rl @ your-config.toml
+# Install the Prime CLI and bootstrap a Lab workspace
+uv tool install prime
+prime lab setup
 ```
 
-`dedeucerl-eval` reports the fixed benchmark reward. RL training can use `reward_mode="train_dense"` or other training-oriented rubric settings via `dedeucerl.vf_env` / `vf-rl`.
+If you want to run the open-source trainer on self-managed GPU infrastructure, add the `prime-rl` bootstrap as well:
 
-Sample configs are included in `configs/vf-rl/` (e.g., `dedeucerl-mealy.toml`).
+```bash
+prime lab setup --prime-rl
+```
 
-### Example Configuration
+### Hosted Training
+
+Hosted Training uses the `prime rl run` entrypoint. Start from the checked-in hosted example:
+
+```bash
+prime rl run configs/rl/dedeucerl-mealy-hosted.toml
+```
+
+The hosted example targets a currently supported hosted-training model from the official Prime docs and uses `dedeucerl.vf_env` directly.
+
+### Self-Managed Training
+
+For self-managed GPU infrastructure, use `prime-rl` after bootstrapping the trainer:
+
+```bash
+uv run prime-rl configs/prime-rl/dedeucerl-mealy.toml
+```
+
+This keeps the same environment contract while following Prime's current self-managed trainer guidance. The checked-in config under `configs/prime-rl/` is intended as a starter template, not a claim that CPU-only local development is sufficient for full RL training.
+
+### Prime Evaluation
+
+Use Prime's eval runner when you want workspace-native evaluation outputs and Prime's TUI tooling:
+
+```bash
+prime eval run configs/eval/dedeucerl-mealy.toml
+```
+
+Use `dedeucerl-eval` when you specifically want DedeuceRL's benchmark JSONL output format, aggregation, sharding, and trace files.
+
+### Example Prime Configuration
 
 ```toml
-# your-config.toml (example)
-model = "Qwen/Qwen3-4B-Instruct"
+model = "Qwen/Qwen3-4B-Instruct-2507"
+max_steps = 100
+batch_size = 64
+rollouts_per_example = 4
 
-[env]
+[sampling]
+max_tokens = 768
+
+[[env]]
 id = "dedeucerl.vf_env"
+args = { skin = "mealy", seeds = [0, 1, 2, 3, 4], budget = 25, n_states = 4, subset = "train", feedback = true, reward_mode = "train_dense" }
 
-[env.args]
-skin = "mealy"
-seeds = [0, 1, 2, 3, 4]
-budget = 25
-n_states = 4
-subset = "train"
-feedback = true
-reward_mode = "train_dense"
-
-[trainer.args]
-run_name = "dedeucerl-mealy"
-micro_batch_size = 4
-rollouts_per_example = 16
-batch_size = 1024
-max_steps = 500
+[wandb]
+project = "dedeucerl"
+name = "qwen3-4b-i-mealy"
 ```
 
 ### Custom Skins
 
-If you create your own skin, you can pass it by import path:
+If you create your own skin, you can pass it by import path in the Prime config:
 
 ```toml
-[env.args]
-skin = "my_pkg.my_skin:MySkinEnv"
+[[env]]
+id = "dedeucerl.vf_env"
+args = { skin = "my_pkg.my_skin:MySkinEnv", seeds = [0, 1, 2], budget = 25, subset = "train" }
 ```
 
-### Alternative Training Frameworks
+### Alternative Frameworks
 
-DedeuceRL is also compatible with:
-- **[prime-rl](https://github.com/PrimeIntellect-ai/prime-rl)** — Async RL at scale with FSDP2 + vLLM
+DedeuceRL remains compatible with other Verifiers-based trainer stacks:
 - **[SkyRL](https://github.com/NovaSky-AI/SkyRL)** — [Verifiers integration](https://github.com/NovaSky-AI/SkyRL/tree/main/skyrl-train/integrations/verifiers)
 - **[Tinker](https://github.com/thinking-machines-lab/tinker-cookbook)** — [Verifiers recipes](https://github.com/thinking-machines-lab/tinker-cookbook/tree/main/tinker_cookbook/recipes/verifiers_rl)
 
@@ -429,7 +459,7 @@ env = MealyEnv(dataset=dataset, rubric=custom_rubric, feedback=True, max_turns=3
 
 </details>
 
-See [verifiers training docs](https://docs.primeintellect.ai/verifiers/training) for complete setup instructions.
+See [Prime's RL guide](https://docs.primeintellect.ai/guides/rl-training), [Verifiers training docs](https://docs.primeintellect.ai/verifiers/training), and [Prime config docs](https://docs.primeintellect.ai/prime-rl/configs) for the complete workflow.
 
 ---
 
@@ -457,7 +487,7 @@ dedeucerl-eval \
 
 **Optional tracing:** `--trace-out traces.jsonl` writes per-turn JSONL events (model replies + tool results) for debugging.
 
-**Reward contract:** `dedeucerl-eval` reports the benchmark reward used for comparable evaluation runs. This is intentionally separate from training-oriented reward modes such as `reward_mode="train_dense"` used with `vf-rl`.
+**Reward contract:** `dedeucerl-eval` reports the benchmark reward used for comparable evaluation runs. This is intentionally separate from training-oriented reward modes such as `reward_mode="train_dense"` used through Prime configs with `dedeucerl.vf_env`.
 
 **Episode selection + sharding:**
 
@@ -512,17 +542,6 @@ dedeucerl-aggregate results.jsonl --format json -o results_summary.json
 ```
 
 Rows are grouped by `model + skin + split_hash + eval_config_hash`. Aggregated output keeps run-level metrics and also reports additive per-episode benchmark fields such as `max_complete_k`, `pass_at_1`, and `pass_at_3` when rollout depth is sufficient.
-
-### `dedeucerl-train`
-
-Generate a vf-rl config (and optionally run it).
-
-```bash
-dedeucerl-train --skin mealy --seeds 0-9 --budget 25 --out configs/tmp.toml
-
-# Run training (requires verifiers[rl] + vf-rl)
-dedeucerl-train --skin mealy --seeds 0-9 --budget 25 --run
-```
 
 ### `dedeucerl-selfcheck`
 

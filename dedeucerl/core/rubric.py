@@ -4,15 +4,14 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
-from verifiers import Rubric
-from verifiers.parsers.parser import Parser
+import verifiers as vf
 
 
 def reward_identification(
     completion: Any,
     answer: str,
     state: Dict[str, Any],
-    parser: Parser,
+    parser: vf.Parser,
     **kwargs,
 ) -> float:
     """Default reward function for active identification.
@@ -38,7 +37,7 @@ def reward_train_dense(
     completion: Any,
     answer: str,
     state: Dict[str, Any],
-    parser: Parser,
+    parser: vf.Parser,
     **kwargs,
 ) -> float:
     """Training-friendly reward with graded efficiency and failure penalty."""
@@ -60,7 +59,7 @@ def metric_success(
     completion: Any,
     answer: str,
     state: Dict[str, Any],
-    parser: Parser,
+    parser: vf.Parser,
     **kwargs,
 ) -> float:
     """Binary success metric: 1.0 if ok, 0.0 otherwise."""
@@ -71,7 +70,7 @@ def metric_queries(
     completion: Any,
     answer: str,
     state: Dict[str, Any],
-    parser: Parser,
+    parser: vf.Parser,
     **kwargs,
 ) -> float:
     """Number of queries used metric."""
@@ -82,7 +81,7 @@ def metric_trap(
     completion: Any,
     answer: str,
     state: Dict[str, Any],
-    parser: Parser,
+    parser: vf.Parser,
     **kwargs,
 ) -> float:
     """Trap hit metric: 1.0 if trap hit, 0.0 otherwise."""
@@ -93,21 +92,21 @@ def metric_budget_remaining(
     completion: Any,
     answer: str,
     state: Dict[str, Any],
-    parser: Parser,
+    parser: vf.Parser,
     **kwargs,
 ) -> float:
     """Remaining budget metric."""
     return float(state.get("budget", 0))
 
 
-def make_rubric() -> Rubric:
+def make_rubric() -> vf.Rubric:
     """Create the standard rubric for active identification.
 
     Returns:
         Rubric with reward_identification as the primary function
         and additional metrics for analysis.
     """
-    return Rubric(
+    return vf.Rubric(
         funcs=[
             reward_identification,
             metric_success,
@@ -116,13 +115,13 @@ def make_rubric() -> Rubric:
             metric_budget_remaining,
         ],
         weights=[1.0, 0.0, 0.0, 0.0, 0.0],
-        parser=Parser(extract_fn=lambda s: s),
+        parser=vf.Parser(extract_fn=lambda s: s),
     )
 
 
-def make_train_rubric() -> Rubric:
+def make_train_rubric() -> vf.Rubric:
     """Create a training-friendly rubric with denser rewards."""
-    return Rubric(
+    return vf.Rubric(
         funcs=[
             reward_train_dense,
             metric_success,
@@ -131,5 +130,5 @@ def make_train_rubric() -> Rubric:
             metric_budget_remaining,
         ],
         weights=[1.0, 0.0, 0.0, 0.0, 0.0],
-        parser=Parser(extract_fn=lambda s: s),
+        parser=vf.Parser(extract_fn=lambda s: s),
     )

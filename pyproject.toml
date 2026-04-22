@@ -1,6 +1,6 @@
 [project]
 name = "dedeucerl"
-version = "1.0.8"
+version = "1.0.9"
 description = "A modular framework for active system identification benchmarks"
 readme = {file = "README_PYPI.md", content-type = "text/markdown"}
 license = {file = "LICENSE"}
@@ -30,8 +30,8 @@ classifiers = [
 ]
 requires-python = ">=3.10"
 dependencies = [
-    "verifiers>=0.1.9",
-    "datasets>=2.0",
+    "verifiers>=0.1.12,<0.2",
+    "datasets>=3.0,<4.7.0",
 ]
 
 [project.urls]
@@ -59,9 +59,6 @@ dev = [
     "pytest-asyncio>=0.21",
     "ruff>=0.1",
 ]
-rl = [
-    "verifiers[rl]>=0.1.9",
-]
 
 [project.scripts]
 dedeucerl-eval = "dedeucerl.cli.eval:main"
@@ -69,7 +66,6 @@ dedeucerl-eval-parallel = "dedeucerl.cli.eval_parallel:main"
 dedeucerl-generate = "dedeucerl.cli.generate:main"
 dedeucerl-aggregate = "dedeucerl.cli.aggregate:main"
 dedeucerl-selfcheck = "dedeucerl.cli.selfcheck:main"
-dedeucerl-train = "dedeucerl.cli.train:main"
 
 [build-system]
 requires = ["setuptools>=64", "wheel"]
