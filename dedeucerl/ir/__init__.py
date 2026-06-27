@@ -15,10 +15,18 @@ from dedeucerl.ir.actions import (
     ToolKind,
     UnionSpace,
 )
+from dedeucerl.ir.hypotheses import (
+    ExactJSONContract,
+    FiniteTransducerIsomorphismContract,
+    HypothesisContract,
+    HypothesisInputError,
+    HypothesisJudgment,
+    HypothesisParseResult,
+    HypothesisValidationResult,
+)
 from dedeucerl.ir.registry import TASK_REGISTRY, TaskEntry, get_task_entry
 from dedeucerl.ir.types import (
     FeedbackModel,
-    HypothesisContract,
     ObservationModel,
     Renderer,
     ResourceModel,
@@ -31,8 +39,14 @@ __all__ = [
     "ActionSpace",
     "ActionValidationError",
     "EnumSpace",
+    "ExactJSONContract",
     "FeedbackModel",
+    "FiniteTransducerIsomorphismContract",
     "HypothesisContract",
+    "HypothesisInputError",
+    "HypothesisJudgment",
+    "HypothesisParseResult",
+    "HypothesisValidationResult",
     "JsonSchemaSpace",
     "MaskedSpace",
     "NonEnumerableActionSpace",

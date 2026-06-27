@@ -30,6 +30,13 @@ from .rubric import (
     reward_identification,
     reward_train_dense,
 )
+from .transducers import (
+    normalize_transducer_table,
+    parse_transducer_transitions,
+    transducer_counterexample,
+    transducer_table_schema,
+    transducer_tables_are_isomorphic,
+)
 
 __all__ = [
     "CounterexampleTrace",
@@ -50,7 +57,12 @@ __all__ = [
     "metric_queries",
     "metric_success",
     "metric_trap",
+    "normalize_transducer_table",
+    "parse_transducer_transitions",
     "reward_identification",
     "reward_train_dense",
+    "transducer_counterexample",
+    "transducer_table_schema",
+    "transducer_tables_are_isomorphic",
     "verify_trap_free_path_exists",
 ]

@@ -6,10 +6,10 @@ from dataclasses import dataclass, field
 from typing import Any, Mapping, Sequence
 
 from dedeucerl.ir.actions import ActionContext, ActionValidationError, ToolActionContract
+from dedeucerl.ir.hypotheses import HypothesisInputError, HypothesisJudgment
 from dedeucerl.ir.types import TaskIR
 from dedeucerl.kernel.types import (
     KernelInputError,
-    KernelJudgment,
     KernelTransition,
     TaskInstance,
 )
@@ -179,8 +179,11 @@ class EpisodeRuntime:
             )
 
         try:
-            result = self.ir.call(self.instance, self.state, tool_name, action)
-        except KernelInputError as e:
+            if contract.kind == "submit":
+                result = self.ir.submit(self.instance, tool_name, action)
+            else:
+                result = self.ir.call(self.instance, self.state, tool_name, action)
+        except (KernelInputError, HypothesisInputError) as e:
             return self._record_error(
                 tool_name,
                 args,
@@ -195,7 +198,7 @@ class EpisodeRuntime:
                 tool_name,
                 args,
                 error_invalid_argument(
-                    f"Kernel tool '{tool_name}' raised exception",
+                    f"Tool '{tool_name}' raised exception",
                     details={"tool": tool_name, "error": str(e)},
                 ),
                 contract=contract,
@@ -217,7 +220,7 @@ class EpisodeRuntime:
             output.update(self._runtime_fields())
             if contract.kind == "probe":
                 output["t"] = self.tool_calls
-        elif isinstance(result, KernelJudgment):
+        elif isinstance(result, HypothesisJudgment):
             self.ok = bool(result.ok) and not self.trap_hit
             if result.ok:
                 self.done = True
@@ -229,12 +232,14 @@ class EpisodeRuntime:
                 judgment=result,
                 runtime_ok=self.ok,
             )
+            if result.distance is not None:
+                output["distance"] = result.distance
         else:
             return self._record_error(
                 tool_name,
                 args,
                 error_invalid_argument(
-                    f"Kernel tool '{tool_name}' returned unsupported result type",
+                    f"Tool '{tool_name}' returned unsupported result type",
                     details={"tool": tool_name, "type": type(result).__name__},
                 ),
                 contract=contract,

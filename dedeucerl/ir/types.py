@@ -6,32 +6,25 @@ from dataclasses import dataclass, field
 from typing import Any, Mapping, Protocol, Sequence
 
 from dedeucerl.ir.actions import ActionContext, ToolActionContract, ToolActionSpace
+from dedeucerl.ir.hypotheses import (
+    HypothesisContract,
+    HypothesisInputError,
+    HypothesisJudgment,
+    enrich_judgment,
+)
 from dedeucerl.kernel.types import (
-    KernelJudgment,
     KernelParam,
     KernelTransition,
     SystemKernel,
     TaskInstance,
 )
+from dedeucerl.utils import error_malformed_hypothesis
 
 
 class ObservationModel(Protocol):
     """Public and tool-observation model for a task."""
 
     def public_observation(self, instance: TaskInstance) -> Mapping[str, Any]: ...
-
-
-class HypothesisContract(Protocol):
-    """Submission contract and judgment behavior."""
-
-    def handles(self, tool_name: str) -> bool: ...
-
-    def judge(
-        self,
-        instance: TaskInstance,
-        tool_name: str,
-        action: Any,
-    ) -> KernelJudgment: ...
 
 
 @dataclass(frozen=True)
@@ -56,7 +49,7 @@ class FeedbackModel:
         self,
         *,
         feedback_enabled: bool,
-        judgment: KernelJudgment,
+        judgment: HypothesisJudgment,
         runtime_ok: bool,
     ) -> Any | None:
         if not self.reveal_counterexample or not feedback_enabled or runtime_ok:
@@ -100,6 +93,32 @@ class TaskIR:
     generator: TaskGeneratorSpec
     renderers: Mapping[str, Renderer] = field(default_factory=dict)
 
+    def __post_init__(self) -> None:
+        non_submit_contracts = tuple(self.action_space.contracts)
+        submit_contracts = tuple(self.hypothesis_contract.tool_contracts())
+
+        bad_non_submit = [
+            contract.name for contract in non_submit_contracts if contract.kind == "submit"
+        ]
+        if bad_non_submit:
+            raise ValueError(
+                "submit tools must be declared by the hypothesis contract: "
+                f"{bad_non_submit!r}"
+            )
+
+        bad_submit = [
+            contract.name for contract in submit_contracts if contract.kind != "submit"
+        ]
+        if bad_submit:
+            raise ValueError(
+                "hypothesis contracts may only declare submit tools: "
+                f"{bad_submit!r}"
+            )
+
+        names = [contract.name for contract in (*non_submit_contracts, *submit_contracts)]
+        if len(names) != len(set(names)):
+            raise ValueError(f"duplicate TaskIR tool names: {names!r}")
+
     def public_observation(self, instance: TaskInstance) -> Mapping[str, Any]:
         return self.observation_model.public_observation(instance)
 
@@ -125,13 +144,13 @@ class TaskIR:
         )
 
     def action_contracts(self, context: ActionContext) -> list[ToolActionContract[Any]]:
-        return self.action_space.contracts_for_context(context)
+        submit_contracts = [
+            contract.mask(context) for contract in self.hypothesis_contract.tool_contracts()
+        ]
+        return [*self.action_space.contracts_for_context(context), *submit_contracts]
 
     def tool_schemas(self, context: ActionContext) -> list[dict[str, Any]]:
-        return self.action_space.to_tool_schemas(context)
-
-    def handles_submission(self, tool_name: str) -> bool:
-        return self.hypothesis_contract.handles(tool_name)
+        return [contract.to_tool_schema() for contract in self.action_contracts(context)]
 
     def call(
         self,
@@ -139,7 +158,31 @@ class TaskIR:
         state: Any,
         tool_name: str,
         action: Any,
-    ) -> KernelTransition | KernelJudgment:
-        if self.handles_submission(tool_name):
-            return self.hypothesis_contract.judge(instance, tool_name, action)
+    ) -> KernelTransition:
         return self.kernel.call(instance, state, tool_name, action)
+
+    def submit(
+        self,
+        instance: TaskInstance,
+        tool_name: str,
+        action: Any,
+    ) -> HypothesisJudgment:
+        parse_result = self.hypothesis_contract.parse(tool_name, action)
+        hypothesis = parse_result.unwrap()
+
+        validation = self.hypothesis_contract.validate(instance, hypothesis)
+        validation.raise_for_error()
+
+        try:
+            normalized = self.hypothesis_contract.normalize(instance, hypothesis)
+        except HypothesisInputError:
+            raise
+        except Exception as e:
+            raise HypothesisInputError(error_malformed_hypothesis(str(e))) from e
+
+        judgment = self.hypothesis_contract.judge(instance, normalized)
+        counterexample = (
+            None if judgment.ok else self.hypothesis_contract.counterexample(instance, normalized)
+        )
+        distance = self.hypothesis_contract.distance(instance, normalized)
+        return enrich_judgment(judgment, counterexample=counterexample, distance=distance)
