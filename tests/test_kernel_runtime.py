@@ -103,14 +103,33 @@ def test_runtime_errors_are_structured_and_charge_budget() -> None:
     unknown = runtime.call_tool("missing", {})
     assert unknown.error is not None
     assert unknown.error["code"] == ErrorCode.UNKNOWN_TOOL.value
+    assert unknown.tool_calls == 1
     assert runtime.budget == 1
+    assert runtime.tool_calls == 1
 
     bad = runtime.call_tool("act", {"symbol": "Z"})
     assert bad.error is not None
     assert bad.error["code"] == ErrorCode.INVALID_ARGUMENT.value
     assert bad.action is None
+    assert bad.tool_calls == 2
     assert runtime.budget == 0
+    assert runtime.tool_calls == 2
     assert runtime.done is True
+
+
+def test_runtime_counts_malformed_submit_as_charged_tool_call() -> None:
+    ir, instance = _mealy(budget=3)
+    runtime = EpisodeRuntime(ir, instance, feedback=True)
+
+    event = runtime.call_tool("submit_table", {"table_json": ""})
+
+    assert event.error is not None
+    assert event.output["ok"] is False
+    assert event.tool_calls == 1
+    assert runtime.tool_calls == 1
+    assert runtime.queries_used == 1
+    assert runtime.budget == 2
+    assert runtime.done is False
 
 
 def test_runtime_replay_matches_events() -> None:

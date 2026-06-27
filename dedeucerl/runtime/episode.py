@@ -207,7 +207,6 @@ class EpisodeRuntime:
                 action=action,
             )
 
-        self.tool_calls += 1
         output: dict[str, Any] = {}
         if isinstance(result, KernelTransition):
             self.state = result.next_state
@@ -320,6 +319,7 @@ class EpisodeRuntime:
             return False
         self.budget -= cost
         self.queries_used += cost
+        self.tool_calls += 1
         return True
 
     def _runtime_fields(self) -> dict[str, Any]:
