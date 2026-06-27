@@ -39,4 +39,5 @@ def test_aggregate_json_output(tmp_path: Path) -> None:
 
 def test_removed_skin_or_train_modules_are_not_in_source() -> None:
     assert not (REPO_ROOT / "dedeucerl" / "cli" / "train.py").exists()
+    assert not (REPO_ROOT / "dedeucerl" / "kernel" / "registry.py").exists()
     assert not any((REPO_ROOT / "dedeucerl" / "skins").glob("*.py"))

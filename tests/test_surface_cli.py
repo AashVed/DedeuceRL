@@ -8,7 +8,7 @@ from pathlib import Path
 
 import verifiers as vf
 
-from dedeucerl.kernel import KERNEL_REGISTRY
+from dedeucerl.ir import TASK_REGISTRY
 from dedeucerl.surface import (
     build_dataset_from_split,
     compile_prompt,
@@ -30,16 +30,16 @@ def _run_module(module: str, args: list[str]) -> subprocess.CompletedProcess[str
 
 
 def test_surface_compilers_roundtrip() -> None:
-    entry = KERNEL_REGISTRY["mealy"]
-    instance = entry.sampler.sample(seed=0, budget=5, n_states=2)
-    contracts = entry.kernel.tool_contracts(instance, entry.kernel.initial_state(instance))
+    entry = TASK_REGISTRY["mealy"]
+    instance = entry.ir.generator.sample(seed=0, budget=5, n_states=2)
+    contracts = entry.ir.tool_contracts(instance, entry.ir.kernel.initial_state(instance))
 
-    prompt = compile_prompt(entry.kernel, instance, list(contracts), feedback=True)
+    prompt = compile_prompt(entry.ir, instance, list(contracts), feedback=True)
     schemas = compile_tool_schemas(list(contracts))
     assert "OBSERVATION" in prompt[1]["content"]
     assert {schema["name"] for schema in schemas} == {"act", "submit_table"}
 
-    split = generate_split(entry.sampler, seeds=[0, 1], budget=5, subset_name="dev", n_states=2)
+    split = generate_split(entry.ir, seeds=[0, 1], budget=5, subset_name="dev", n_states=2)
     dataset = build_dataset_from_split(split, "dev", feedback=False)
     assert len(dataset) == 2
     assert json.loads(dataset[0]["answer"])["kernel_name"] == "mealy"

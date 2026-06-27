@@ -1,24 +1,33 @@
-"""Prompt compiler for kernel tasks."""
+"""Prompt compiler for TaskIR tasks."""
 
 from __future__ import annotations
 
 import json
 from typing import Any
 
-from dedeucerl.kernel.types import SystemKernel, TaskInstance, ToolContract
+from dedeucerl.ir.types import TaskIR
+from dedeucerl.kernel.types import TaskInstance, ToolContract
 
 
 def compile_prompt(
-    kernel: SystemKernel,
+    ir: TaskIR,
     instance: TaskInstance,
-    contracts: list[ToolContract],
+    contracts: list[ToolContract] | None = None,
     *,
     feedback: bool = False,
 ) -> list[dict[str, Any]]:
-    observation = kernel.public_observation(instance)
-    guidance_fn = getattr(kernel, "prompt_guidance", None)
-    guidance = guidance_fn(instance) if callable(guidance_fn) else _default_guidance(instance)
-    tools_text = "\n".join(_format_tool(contract) for contract in contracts)
+    runtime_contracts = (
+        list(contracts)
+        if contracts is not None
+        else ir.tool_contracts(instance, ir.kernel.initial_state(instance))
+    )
+    renderer = ir.renderers.get("prompt")
+    if renderer is not None:
+        return renderer.render(ir, instance, runtime_contracts, feedback=feedback)
+
+    observation = ir.public_observation(instance)
+    guidance = _default_guidance()
+    tools_text = "\n".join(_format_tool(contract) for contract in runtime_contracts)
 
     system = (
         "You are an autonomous tool-using agent solving a hidden-system identification task.\n"
@@ -61,11 +70,5 @@ def _format_tool(contract: ToolContract) -> str:
     return f"- {contract.name}({', '.join(args)}) [{contract.kind}, cost={contract.cost}]"
 
 
-def _default_guidance(instance: TaskInstance) -> str:
-    if instance.kernel_name == "mealy":
-        return (
-            "Mealy task: identify a finite-state transducer. "
-            'Submit JSON shaped like {"n": <states>, "start": 0, '
-            '"trans": {"0": {"A": [next_state, output], ...}, ...}}.'
-        )
+def _default_guidance() -> str:
     return "Identify the hidden system using the exposed tools."

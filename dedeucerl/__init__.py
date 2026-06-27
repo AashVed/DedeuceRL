@@ -1,4 +1,4 @@
-"""DedeuceRL: kernel/runtime/surface framework for active identification."""
+"""DedeuceRL: TaskIR/runtime/surface framework for active identification."""
 
 from __future__ import annotations
 
@@ -11,8 +11,8 @@ except PackageNotFoundError:  # pragma: no cover
     __version__ = "0.0.0"
 
 from dedeucerl.core.rubric import make_rubric, reward_identification
+from dedeucerl.ir import TASK_REGISTRY, TaskEntry, TaskIR, get_task_entry
 from dedeucerl.kernel import (
-    KERNEL_REGISTRY,
     KernelJudgment,
     KernelTransition,
     MealyKernel,
@@ -25,13 +25,16 @@ from dedeucerl.runtime import EpisodeRuntime
 __all__ = [
     "__version__",
     "EpisodeRuntime",
-    "KERNEL_REGISTRY",
     "KernelJudgment",
     "KernelTransition",
     "MealyKernel",
     "SystemKernel",
+    "TASK_REGISTRY",
+    "TaskEntry",
+    "TaskIR",
     "TaskInstance",
     "ToolContract",
+    "get_task_entry",
     "make_rubric",
     "reward_identification",
 ]

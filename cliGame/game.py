@@ -1,11 +1,11 @@
-"""Interactive CLI for playing kernel-backed DedeuceRL episodes."""
+"""Interactive CLI for playing TaskIR-backed DedeuceRL episodes."""
 
 from __future__ import annotations
 
 import json
 from typing import Any
 
-from dedeucerl.kernel import KERNEL_REGISTRY
+from dedeucerl.ir import TASK_REGISTRY
 from dedeucerl.runtime import EpisodeRuntime
 from dedeucerl.surface import compile_prompt, compile_tool_schemas
 
@@ -57,23 +57,23 @@ def _print_block(title: str, content: str) -> None:
 
 def main() -> None:
     print("DedeuceRL Interactive Game")
-    names = sorted(KERNEL_REGISTRY)
+    names = sorted(TASK_REGISTRY)
     for i, name in enumerate(names, start=1):
         print(f"{i}. {name}")
     choice = _prompt_int("Select kernel", default=1)
     kernel_name = names[max(0, min(choice - 1, len(names) - 1))]
-    entry = KERNEL_REGISTRY[kernel_name]
+    entry = TASK_REGISTRY[kernel_name]
 
     seed = _prompt_int("Seed", default=0)
     budget = _prompt_int("Budget", default=25)
     n_states = _prompt_int("n_states", default=3)
     trap = _prompt_bool("Use traps", default=True)
 
-    instance = entry.sampler.sample(seed=seed, budget=budget, n_states=n_states, trap=trap)
-    runtime = EpisodeRuntime(entry.kernel, instance, feedback=True)
+    instance = entry.ir.generator.sample(seed=seed, budget=budget, n_states=n_states, trap=trap)
+    runtime = EpisodeRuntime(entry.ir, instance, feedback=True)
     contracts = runtime.contracts()
     tool_schemas = compile_tool_schemas(contracts)
-    prompt = compile_prompt(entry.kernel, instance, contracts, feedback=True)
+    prompt = compile_prompt(entry.ir, instance, contracts, feedback=True)
 
     _print_block("SYSTEM PROMPT", str(prompt[0]["content"]))
     _print_block("USER PROMPT", str(prompt[1]["content"]))

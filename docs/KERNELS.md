@@ -1,27 +1,34 @@
-# Creating Kernels
+# Creating Tasks
 
-DedeuceRL's extension point is a pure `SystemKernel`, plus an optional sampler.
-Kernels define hidden-system semantics only. They do not import Verifiers,
-datasets, provider adapters, prompts, or CLI code.
+DedeuceRL's extension point is `TaskIR`. A task combines pure hidden-system
+semantics with executable contracts that every surface can compile.
 
-The minimum kernel surface is:
+The minimum semantic kernel remains small:
 
 ```python
 class MyKernel:
-    name = "mykernel"
+    name = "mytask"
     version = "0.1"
 
     def initial_state(self, instance): ...
-    def public_observation(self, instance): ...
-    def tool_contracts(self, instance, state): ...
     def call(self, instance, state, tool_name, args): ...
 ```
+
+The `TaskIR` wraps that kernel with:
+
+- an `ActionSpace`
+- an `ObservationModel`
+- a `HypothesisContract`
+- a `ResourceModel`
+- a `FeedbackModel`
+- a `TaskGeneratorSpec`
+- optional `Renderer` objects
 
 Use `ToolContract` to describe tools, `KernelTransition` for probe/diagnostic
 results, and `KernelJudgment` for submissions. `EpisodeRuntime` handles budget,
 turns, traps, errors, event logs, and replay.
 
-Surfaces compile kernels into:
+Surfaces compile TaskIR into:
 
 - Hugging Face datasets and split JSON
 - Verifiers environments through `dedeucerl.vf_env`
@@ -29,7 +36,7 @@ Surfaces compile kernels into:
 - prompts
 - CLI evaluation and interactive play
 
-`MealyKernel` is the reference implementation.
+`MealyKernel` plus the Mealy TaskIR is the reference implementation.
 
 Former skin concepts are preserved as design anchors under `docs/skin-ideas/`:
 

@@ -1,4 +1,4 @@
-"""dedeucerl-generate: generate kernel-backed task splits."""
+"""dedeucerl-generate: generate TaskIR-backed task splits."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import json
 import sys
 from typing import Any
 
-from dedeucerl.kernel import KERNEL_REGISTRY
+from dedeucerl.ir import TASK_REGISTRY
 from dedeucerl.surface.dataset import generate_split, save_split
 
 
@@ -30,27 +30,26 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         prog="dedeucerl-generate",
         description="Generate DedeuceRL task splits.",
     )
-    parser.add_argument("--skin", "--kernel", dest="kernel", required=True, choices=KERNEL_REGISTRY)
-    parser.add_argument("--show-skin-params", action="store_true")
+    parser.add_argument("--skin", "--kernel", "--task", dest="kernel", required=True, choices=TASK_REGISTRY)
+    parser.add_argument("--show-task-params", "--show-skin-params", dest="show_params", action="store_true")
     parser.add_argument("--seeds", required=True)
     parser.add_argument("--subset", default="dev")
     parser.add_argument("--budget", type=int, default=25)
     parser.add_argument("-o", "--out", default=None)
     parser.add_argument("--no-trap", action="store_true")
     parser.add_argument("--param", action="append", default=[])
-    parser.add_argument("--skin-kwargs", type=str, default=None)
+    parser.add_argument("--task-kwargs", "--skin-kwargs", dest="task_kwargs", type=str, default=None)
     parser.add_argument("--n-states", type=int, default=None)
     return parser.parse_args(argv)
 
 
 def main() -> None:
     args = parse_args()
-    entry = KERNEL_REGISTRY[args.kernel]
-    sampler = entry.sampler
+    entry = TASK_REGISTRY[args.kernel]
 
-    if args.show_skin_params:
-        print(f"Kernel '{entry.name}' parameters:")
-        for name, param in sorted(sampler.params.items()):
+    if args.show_params:
+        print(f"Task '{entry.name}' parameters:")
+        for name, param in sorted(entry.ir.generator.params.items()):
             print(f"- {name} (default={param.default}): {param.description}")
         sys.exit(0)
 
@@ -64,14 +63,14 @@ def main() -> None:
     if args.n_states is not None:
         params["n_states"] = int(args.n_states)
 
-    if args.skin_kwargs:
+    if args.task_kwargs:
         try:
-            extra = json.loads(args.skin_kwargs)
+            extra = json.loads(args.task_kwargs)
             if not isinstance(extra, dict):
-                raise ValueError("--skin-kwargs must be a JSON object")
+                raise ValueError("--task-kwargs must be a JSON object")
             params.update(extra)
         except Exception as e:
-            print(f"Error parsing --skin-kwargs: {e}", file=sys.stderr)
+            print(f"Error parsing --task-kwargs: {e}", file=sys.stderr)
             sys.exit(1)
 
     for kv in args.param:
@@ -86,7 +85,7 @@ def main() -> None:
     print(f"  Params: {params}")
 
     split = generate_split(
-        sampler,
+        entry.ir,
         seeds=seeds,
         budget=int(args.budget),
         subset_name=args.subset,

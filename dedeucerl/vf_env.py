@@ -1,4 +1,4 @@
-"""Verifiers-compatible environment entrypoint for DedeuceRL kernels."""
+"""Verifiers-compatible environment entrypoint for DedeuceRL TaskIR tasks."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from typing import Any, Optional, Sequence
 import verifiers as vf
 
 from dedeucerl.core import make_rubric, make_train_rubric
-from dedeucerl.kernel import KERNEL_REGISTRY
+from dedeucerl.ir import TASK_REGISTRY
 from dedeucerl.surface import build_dataset_from_split, generate_split, load_split, make_verifiers_env
 
 
@@ -48,8 +48,8 @@ def _build_dataset(
     feedback: bool,
     kernel_kwargs: dict[str, Any],
 ):
-    if kernel not in KERNEL_REGISTRY:
-        raise ValueError(f"Unknown kernel '{kernel}'. Available: {sorted(KERNEL_REGISTRY)}")
+    if kernel not in TASK_REGISTRY:
+        raise ValueError(f"Unknown task '{kernel}'. Available: {sorted(TASK_REGISTRY)}")
     if split_path is not None and (seeds is not None or budget is not None or kernel_kwargs):
         raise ValueError("Use split_path alone; do not combine with seeds/budget/kernel args.")
     if split_path is not None:
@@ -59,7 +59,7 @@ def _build_dataset(
         raise ValueError("Provide split_path or non-empty seeds.")
     budget_value = int(budget) if budget is not None else 25
     split = generate_split(
-        KERNEL_REGISTRY[kernel].sampler,
+        TASK_REGISTRY[kernel].ir,
         seeds=seed_list,
         budget=budget_value,
         subset_name=subset,

@@ -5,11 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Mapping, Sequence
 
+from dedeucerl.ir.types import TaskIR
 from dedeucerl.kernel.types import (
     KernelInputError,
     KernelJudgment,
     KernelTransition,
-    SystemKernel,
     TaskInstance,
     ToolContract,
 )
@@ -68,7 +68,7 @@ class ReplayResult:
 
 @dataclass
 class EpisodeRuntime:
-    kernel: SystemKernel
+    ir: TaskIR
     instance: TaskInstance
     feedback: bool = False
     state: Any = None
@@ -82,14 +82,14 @@ class EpisodeRuntime:
     events: list[EpisodeEvent] = field(default_factory=list)
 
     def __post_init__(self) -> None:
-        self.state = self.kernel.initial_state(self.instance)
+        self.state = self.ir.kernel.initial_state(self.instance)
         self.budget = max(0, int(self.instance.budget))
         self.budget_init = self.budget
         if self.budget <= 0:
             self.done = True
 
     def contracts(self) -> list[ToolContract]:
-        return list(self.kernel.tool_contracts(self.instance, self.state))
+        return list(self.ir.tool_contracts(self.instance, self.state))
 
     def call_tool(self, tool_name: str, raw_args: Mapping[str, Any] | None) -> EpisodeEvent:
         args = dict(raw_args or {})
@@ -107,7 +107,7 @@ class EpisodeRuntime:
             )
 
         if contract is None:
-            cost = 1
+            cost = max(0, int(self.ir.resource_model.unknown_tool_cost))
             if not self._charge(cost):
                 return self._record_error(
                     tool_name,
@@ -126,7 +126,7 @@ class EpisodeRuntime:
                 budget_before=budget_before,
             )
 
-        cost = max(0, int(contract.cost))
+        cost = self.ir.resource_model.cost(contract)
         if not self._charge(cost):
             return self._record_error(
                 tool_name,
@@ -152,7 +152,7 @@ class EpisodeRuntime:
             )
 
         try:
-            result = self.kernel.call(self.instance, self.state, tool_name, args)
+            result = self.ir.call(self.instance, self.state, tool_name, args)
         except KernelInputError as e:
             return self._record_error(
                 tool_name,
@@ -181,7 +181,7 @@ class EpisodeRuntime:
             self.state = result.next_state
             if result.trap:
                 self.trap_hit = True
-                if bool(self.instance.params.get("trap_ends_episode", False)):
+                if self.ir.resource_model.trap_ends_episode:
                     self.done = True
                     self.ok = False
             output.update(result.observation)
@@ -195,7 +195,11 @@ class EpisodeRuntime:
             output.update(result.observation)
             output["ok"] = self.ok
             output.update(self._runtime_fields())
-            output["counterexample"] = result.counterexample if self.feedback and not self.ok else None
+            output["counterexample"] = self.ir.feedback_model.counterexample(
+                feedback_enabled=self.feedback,
+                judgment=result,
+                runtime_ok=self.ok,
+            )
         else:
             return self._record_error(
                 tool_name,
@@ -232,7 +236,7 @@ class EpisodeRuntime:
         return event
 
     def replay(self, events: Sequence[EpisodeEvent | Mapping[str, Any]]) -> ReplayResult:
-        runtime = EpisodeRuntime(self.kernel, self.instance, feedback=self.feedback)
+        runtime = EpisodeRuntime(self.ir, self.instance, feedback=self.feedback)
         replayed: list[EpisodeEvent] = []
         for idx, event in enumerate(events):
             event_dict = event.to_dict() if isinstance(event, EpisodeEvent) else dict(event)

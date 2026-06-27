@@ -1,4 +1,4 @@
-"""Surface compilers for kernels and runtimes."""
+"""Surface compilers for TaskIR runtimes."""
 
 from dedeucerl.surface.dataset import (
     build_dataset_from_split,

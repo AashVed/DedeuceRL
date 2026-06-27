@@ -2,29 +2,35 @@ from __future__ import annotations
 
 import json
 
-from dedeucerl.kernel import KERNEL_REGISTRY
+from dedeucerl.ir import TASK_REGISTRY
 from dedeucerl.runtime import EpisodeRuntime
 from dedeucerl.utils.errors import ErrorCode
 
 
 def _mealy(seed: int = 0, budget: int = 10, **kwargs):
-    entry = KERNEL_REGISTRY["mealy"]
-    instance = entry.sampler.sample(seed=seed, budget=budget, n_states=3, trap=False, **kwargs)
-    return entry.kernel, instance
+    entry = TASK_REGISTRY["mealy"]
+    instance = entry.ir.generator.sample(
+        seed=seed,
+        budget=budget,
+        n_states=3,
+        trap=False,
+        **kwargs,
+    )
+    return entry.ir, instance
 
 
-def test_mealy_sampler_is_deterministic() -> None:
-    entry = KERNEL_REGISTRY["mealy"]
-    a = entry.sampler.sample(seed=123, budget=10, n_states=4, trap=True)
-    b = entry.sampler.sample(seed=123, budget=10, n_states=4, trap=True)
+def test_mealy_generator_is_deterministic() -> None:
+    entry = TASK_REGISTRY["mealy"]
+    a = entry.ir.generator.sample(seed=123, budget=10, n_states=4, trap=True)
+    b = entry.ir.generator.sample(seed=123, budget=10, n_states=4, trap=True)
     assert a.private == b.private
     assert a.kernel_name == "mealy"
 
 
-def test_mealy_sampler_rejects_invalid_parameters() -> None:
-    entry = KERNEL_REGISTRY["mealy"]
+def test_mealy_generator_rejects_invalid_parameters() -> None:
+    entry = TASK_REGISTRY["mealy"]
     try:
-        entry.sampler.sample(seed=0, budget=1, n_states=0)
+        entry.ir.generator.sample(seed=0, budget=1, n_states=0)
     except ValueError as e:
         assert "n_states" in str(e)
     else:
@@ -32,8 +38,8 @@ def test_mealy_sampler_rejects_invalid_parameters() -> None:
 
 
 def test_runtime_probe_and_correct_submit() -> None:
-    kernel, instance = _mealy()
-    runtime = EpisodeRuntime(kernel, instance, feedback=True)
+    ir, instance = _mealy()
+    runtime = EpisodeRuntime(ir, instance, feedback=True)
 
     event = runtime.call_tool("act", {"symbol": "A"})
     assert "out" in event.output
@@ -47,8 +53,8 @@ def test_runtime_probe_and_correct_submit() -> None:
 
 
 def test_runtime_incorrect_submit_can_return_counterexample() -> None:
-    kernel, instance = _mealy()
-    runtime = EpisodeRuntime(kernel, instance, feedback=True)
+    ir, instance = _mealy()
+    runtime = EpisodeRuntime(ir, instance, feedback=True)
     table = json.loads(json.dumps(instance.private["table"]))
     table["trans"]["0"]["A"][1] = (int(table["trans"]["0"]["A"][1]) + 1) % 3
 
@@ -59,8 +65,8 @@ def test_runtime_incorrect_submit_can_return_counterexample() -> None:
 
 
 def test_runtime_errors_are_structured_and_charge_budget() -> None:
-    kernel, instance = _mealy(budget=2)
-    runtime = EpisodeRuntime(kernel, instance)
+    ir, instance = _mealy(budget=2)
+    runtime = EpisodeRuntime(ir, instance)
 
     unknown = runtime.call_tool("missing", {})
     assert unknown.error is not None
@@ -75,8 +81,8 @@ def test_runtime_errors_are_structured_and_charge_budget() -> None:
 
 
 def test_runtime_replay_matches_events() -> None:
-    kernel, instance = _mealy()
-    runtime = EpisodeRuntime(kernel, instance)
+    ir, instance = _mealy()
+    runtime = EpisodeRuntime(ir, instance)
     runtime.call_tool("act", {"symbol": "A"})
     runtime.call_tool("act", {"symbol": "B"})
 
