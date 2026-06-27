@@ -1,279 +1,347 @@
 {
+  "version": 2,
+  "metadata": {
+    "kernel": "mealy",
+    "kernel_version": "2.0"
+  },
   "dev": {
+    "kernel": "mealy",
     "budget": 60,
+    "params": {
+      "trap": false,
+      "n_states": 3
+    },
     "items": [
       {
-        "seed": 42,
-        "system": {
-          "table": {
-            "n": 3,
-            "start": 0,
-            "trans": {
-              "0": {
-                "A": [
-                  1,
-                  2
-                ],
-                "B": [
-                  2,
-                  1
-                ],
-                "C": [
-                  0,
-                  0
-                ]
-              },
-              "1": {
-                "A": [
-                  2,
-                  0
-                ],
-                "B": [
-                  0,
-                  2
-                ],
-                "C": [
-                  0,
-                  2
-                ]
-              },
-              "2": {
-                "A": [
-                  0,
-                  0
-                ],
-                "B": [
-                  2,
-                  2
-                ],
-                "C": [
-                  0,
-                  2
-                ]
+        "instance": {
+          "id": "mealy-42",
+          "seed": 42,
+          "kernel_name": "mealy",
+          "kernel_version": "2.0",
+          "private": {
+            "table": {
+              "n": 3,
+              "start": 0,
+              "trans": {
+                "0": {
+                  "A": [
+                    1,
+                    2
+                  ],
+                  "B": [
+                    2,
+                    1
+                  ],
+                  "C": [
+                    0,
+                    0
+                  ]
+                },
+                "1": {
+                  "A": [
+                    2,
+                    0
+                  ],
+                  "B": [
+                    0,
+                    2
+                  ],
+                  "C": [
+                    0,
+                    2
+                  ]
+                },
+                "2": {
+                  "A": [
+                    0,
+                    0
+                  ],
+                  "B": [
+                    2,
+                    2
+                  ],
+                  "C": [
+                    0,
+                    2
+                  ]
+                }
               }
-            }
+            },
+            "trap_pairs": []
           },
-          "trap_pairs": []
+          "params": {
+            "n_states": 3,
+            "trap": false,
+            "trap_ends_episode": false
+          },
+          "budget": 60,
+          "metadata": {}
         }
       },
       {
-        "seed": 43,
-        "system": {
-          "table": {
-            "n": 3,
-            "start": 0,
-            "trans": {
-              "0": {
-                "A": [
-                  1,
-                  0
-                ],
-                "B": [
-                  0,
-                  1
-                ],
-                "C": [
-                  1,
-                  2
-                ]
-              },
-              "1": {
-                "A": [
-                  2,
-                  1
-                ],
-                "B": [
-                  2,
-                  0
-                ],
-                "C": [
-                  1,
-                  2
-                ]
-              },
-              "2": {
-                "A": [
-                  0,
-                  2
-                ],
-                "B": [
-                  1,
-                  2
-                ],
-                "C": [
-                  0,
-                  2
-                ]
+        "instance": {
+          "id": "mealy-43",
+          "seed": 43,
+          "kernel_name": "mealy",
+          "kernel_version": "2.0",
+          "private": {
+            "table": {
+              "n": 3,
+              "start": 0,
+              "trans": {
+                "0": {
+                  "A": [
+                    1,
+                    0
+                  ],
+                  "B": [
+                    0,
+                    1
+                  ],
+                  "C": [
+                    1,
+                    2
+                  ]
+                },
+                "1": {
+                  "A": [
+                    2,
+                    1
+                  ],
+                  "B": [
+                    2,
+                    0
+                  ],
+                  "C": [
+                    1,
+                    2
+                  ]
+                },
+                "2": {
+                  "A": [
+                    0,
+                    2
+                  ],
+                  "B": [
+                    1,
+                    2
+                  ],
+                  "C": [
+                    0,
+                    2
+                  ]
+                }
               }
-            }
+            },
+            "trap_pairs": []
           },
-          "trap_pairs": []
+          "params": {
+            "n_states": 3,
+            "trap": false,
+            "trap_ends_episode": false
+          },
+          "budget": 60,
+          "metadata": {}
         }
       },
       {
-        "seed": 44,
-        "system": {
-          "table": {
-            "n": 3,
-            "start": 0,
-            "trans": {
-              "0": {
-                "A": [
-                  1,
-                  1
-                ],
-                "B": [
-                  2,
-                  0
-                ],
-                "C": [
-                  0,
-                  1
-                ]
-              },
-              "1": {
-                "A": [
-                  2,
-                  2
-                ],
-                "B": [
-                  0,
-                  1
-                ],
-                "C": [
-                  0,
-                  0
-                ]
-              },
-              "2": {
-                "A": [
-                  0,
-                  2
-                ],
-                "B": [
-                  0,
-                  2
-                ],
-                "C": [
-                  0,
-                  0
-                ]
+        "instance": {
+          "id": "mealy-44",
+          "seed": 44,
+          "kernel_name": "mealy",
+          "kernel_version": "2.0",
+          "private": {
+            "table": {
+              "n": 3,
+              "start": 0,
+              "trans": {
+                "0": {
+                  "A": [
+                    1,
+                    1
+                  ],
+                  "B": [
+                    2,
+                    0
+                  ],
+                  "C": [
+                    0,
+                    1
+                  ]
+                },
+                "1": {
+                  "A": [
+                    2,
+                    2
+                  ],
+                  "B": [
+                    0,
+                    1
+                  ],
+                  "C": [
+                    0,
+                    0
+                  ]
+                },
+                "2": {
+                  "A": [
+                    0,
+                    2
+                  ],
+                  "B": [
+                    0,
+                    2
+                  ],
+                  "C": [
+                    0,
+                    0
+                  ]
+                }
               }
-            }
+            },
+            "trap_pairs": []
           },
-          "trap_pairs": []
+          "params": {
+            "n_states": 3,
+            "trap": false,
+            "trap_ends_episode": false
+          },
+          "budget": 60,
+          "metadata": {}
         }
       },
       {
-        "seed": 45,
-        "system": {
-          "table": {
-            "n": 3,
-            "start": 0,
-            "trans": {
-              "0": {
-                "A": [
-                  1,
-                  1
-                ],
-                "B": [
-                  1,
-                  0
-                ],
-                "C": [
-                  1,
-                  1
-                ]
-              },
-              "1": {
-                "A": [
-                  2,
-                  1
-                ],
-                "B": [
-                  0,
-                  0
-                ],
-                "C": [
-                  1,
-                  0
-                ]
-              },
-              "2": {
-                "A": [
-                  0,
-                  1
-                ],
-                "B": [
-                  0,
-                  1
-                ],
-                "C": [
-                  0,
-                  1
-                ]
+        "instance": {
+          "id": "mealy-45",
+          "seed": 45,
+          "kernel_name": "mealy",
+          "kernel_version": "2.0",
+          "private": {
+            "table": {
+              "n": 3,
+              "start": 0,
+              "trans": {
+                "0": {
+                  "A": [
+                    1,
+                    1
+                  ],
+                  "B": [
+                    1,
+                    0
+                  ],
+                  "C": [
+                    1,
+                    1
+                  ]
+                },
+                "1": {
+                  "A": [
+                    2,
+                    1
+                  ],
+                  "B": [
+                    0,
+                    0
+                  ],
+                  "C": [
+                    1,
+                    0
+                  ]
+                },
+                "2": {
+                  "A": [
+                    0,
+                    1
+                  ],
+                  "B": [
+                    0,
+                    1
+                  ],
+                  "C": [
+                    0,
+                    1
+                  ]
+                }
               }
-            }
+            },
+            "trap_pairs": []
           },
-          "trap_pairs": []
+          "params": {
+            "n_states": 3,
+            "trap": false,
+            "trap_ends_episode": false
+          },
+          "budget": 60,
+          "metadata": {}
         }
       },
       {
-        "seed": 46,
-        "system": {
-          "table": {
-            "n": 3,
-            "start": 0,
-            "trans": {
-              "0": {
-                "A": [
-                  1,
-                  0
-                ],
-                "B": [
-                  2,
-                  2
-                ],
-                "C": [
-                  0,
-                  2
-                ]
-              },
-              "1": {
-                "A": [
-                  2,
-                  1
-                ],
-                "B": [
-                  2,
-                  0
-                ],
-                "C": [
-                  2,
-                  2
-                ]
-              },
-              "2": {
-                "A": [
-                  0,
-                  0
-                ],
-                "B": [
-                  0,
-                  0
-                ],
-                "C": [
-                  0,
-                  1
-                ]
+        "instance": {
+          "id": "mealy-46",
+          "seed": 46,
+          "kernel_name": "mealy",
+          "kernel_version": "2.0",
+          "private": {
+            "table": {
+              "n": 3,
+              "start": 0,
+              "trans": {
+                "0": {
+                  "A": [
+                    1,
+                    0
+                  ],
+                  "B": [
+                    2,
+                    2
+                  ],
+                  "C": [
+                    0,
+                    2
+                  ]
+                },
+                "1": {
+                  "A": [
+                    2,
+                    1
+                  ],
+                  "B": [
+                    2,
+                    0
+                  ],
+                  "C": [
+                    2,
+                    2
+                  ]
+                },
+                "2": {
+                  "A": [
+                    0,
+                    0
+                  ],
+                  "B": [
+                    0,
+                    0
+                  ],
+                  "C": [
+                    0,
+                    1
+                  ]
+                }
               }
-            }
+            },
+            "trap_pairs": []
           },
-          "trap_pairs": []
+          "params": {
+            "n_states": 3,
+            "trap": false,
+            "trap_ends_episode": false
+          },
+          "budget": 60,
+          "metadata": {}
         }
       }
-    ],
-    "trap": false,
-    "n_states": 3
+    ]
   }
 }

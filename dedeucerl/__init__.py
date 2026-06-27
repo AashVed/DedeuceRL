@@ -1,4 +1,4 @@
-"""DedeuceRL: A Modular Framework for Active System Identification Benchmarks."""
+"""DedeuceRL: kernel/runtime/surface framework for active identification."""
 
 from __future__ import annotations
 
@@ -10,18 +10,28 @@ except PackageNotFoundError:  # pragma: no cover
     # Source checkout without an installed distribution.
     __version__ = "0.0.0"
 
-from dedeucerl.core.env import HiddenSystemEnv
-from dedeucerl.core.types import ProbeResult, SubmitResult, EpisodeState
-from dedeucerl.core.config import SkinConfig
 from dedeucerl.core.rubric import make_rubric, reward_identification
+from dedeucerl.kernel import (
+    KERNEL_REGISTRY,
+    KernelJudgment,
+    KernelTransition,
+    MealyKernel,
+    SystemKernel,
+    TaskInstance,
+    ToolContract,
+)
+from dedeucerl.runtime import EpisodeRuntime
 
 __all__ = [
     "__version__",
-    "HiddenSystemEnv",
-    "ProbeResult",
-    "SubmitResult",
-    "EpisodeState",
-    "SkinConfig",
+    "EpisodeRuntime",
+    "KERNEL_REGISTRY",
+    "KernelJudgment",
+    "KernelTransition",
+    "MealyKernel",
+    "SystemKernel",
+    "TaskInstance",
+    "ToolContract",
     "make_rubric",
     "reward_identification",
 ]
