@@ -261,7 +261,9 @@ def test_runtime_rejects_masked_action_before_kernel_dispatch() -> None:
 
     assert event.error is not None
     assert event.action is None
+    assert event.tool_calls == 1
     assert runtime.budget == 1
+    assert runtime.tool_calls == 1
     assert calls == []
 
 
@@ -324,4 +326,6 @@ def test_runtime_wraps_action_canonicalization_exceptions() -> None:
     assert event.error["code"] == ErrorCode.INVALID_ARGUMENT.value
     assert "mask failed" in event.error["details"]["error"]
     assert event.action is None
+    assert event.tool_calls == 1
     assert runtime.budget == 1
+    assert runtime.tool_calls == 1
