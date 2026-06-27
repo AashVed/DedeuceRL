@@ -90,13 +90,14 @@ env = vf.load_environment(
 See [docs/KERNELS.md](docs/KERNELS.md). A kernel provides:
 
 - `initial_state(instance)`
-- `call(instance, state, tool_name, args)`
+- `call(instance, state, tool_name, action)`
 
-A `TaskIR` wraps that kernel with action spaces, observation models, hypothesis
-contracts, resources, feedback, generators, and renderers. The runtime handles
-budget, errors, trap state, submissions, event logs, and replay. Surfaces compile
-the same IR into prompts, provider tool schemas, datasets, Verifiers envs, and
-CLI workflows.
+A `TaskIR` wraps that kernel with an executable `ToolActionSpace`, observation
+models, hypothesis contracts, resources, feedback, generators, and renderers.
+The runtime canonicalizes raw tool arguments into domain actions, handles budget,
+errors, trap state, submissions, event logs, and replay. Surfaces compile the
+same IR into prompts, provider tool schemas, datasets, Verifiers envs, and CLI
+workflows.
 
 ## Development
 

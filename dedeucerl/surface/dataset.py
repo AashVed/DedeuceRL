@@ -96,8 +96,16 @@ def build_dataset_from_split(
         instance = instance_from_dict(item["instance"])
 
         entry = get_task_entry(instance.kernel_name)
-        runtime_contracts = entry.ir.tool_contracts(instance, entry.ir.kernel.initial_state(instance))
-        prompts.append(compile_prompt(entry.ir, instance, list(runtime_contracts), feedback=feedback))
+        context = entry.ir.action_context(
+            instance,
+            entry.ir.kernel.initial_state(instance),
+            budget=instance.budget,
+            queries_used=0,
+            tool_calls=0,
+            done=instance.budget <= 0,
+        )
+        runtime_contracts = entry.ir.action_contracts(context)
+        prompts.append(compile_prompt(entry.ir, instance, runtime_contracts, feedback=feedback))
         answers.append(json.dumps(instance_to_dict(instance)))
 
     return Dataset.from_dict({"prompt": prompts, "answer": answers})

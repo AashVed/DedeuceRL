@@ -7,7 +7,14 @@ from dataclasses import dataclass, field
 from typing import Any, Mapping, Sequence
 
 from dedeucerl.core.automata import check_isomorphism_with_signatures, find_counterexample
-from dedeucerl.ir.types import EnumSpace, FeedbackModel, ResourceModel, TaskIR
+from dedeucerl.ir.actions import (
+    EnumSpace,
+    JsonSchemaSpace,
+    ProductSpace,
+    ToolActionContract,
+    ToolActionSpace,
+)
+from dedeucerl.ir.types import FeedbackModel, ResourceModel, TaskIR
 from dedeucerl.kernel.mealy import (
     ALPHABET,
     OUTPUTS,
@@ -20,14 +27,13 @@ from dedeucerl.kernel.types import (
     KernelJudgment,
     KernelParam,
     TaskInstance,
-    ToolContract,
 )
 from dedeucerl.utils import error_invalid_json, error_malformed_hypothesis
 from dedeucerl.utils.schema import validate_jsonschema
 
 
 MEALY_TASK_NAME = "mealy"
-MEALY_TASK_VERSION = "2.1"
+MEALY_TASK_VERSION = "2.2"
 
 
 @dataclass(frozen=True)
@@ -50,41 +56,6 @@ class MealyObservationModel:
 class MealyHypothesisContract:
     """Complete-table submission contract for Mealy tasks."""
 
-    def tool_contracts(self, instance: TaskInstance) -> Sequence[ToolContract]:
-        _ = instance
-        return (
-            ToolContract(
-                name="submit_table",
-                kind="submit",
-                description="Submit a complete Mealy transition table as a JSON string.",
-                args_schema={
-                    "type": "object",
-                    "properties": {
-                        "table_json": {
-                            "type": "string",
-                            "description": (
-                                'JSON: {"n": <int>, "start": 0, "trans": '
-                                '{"0": {"A": [next_state, output], ...}, ...}}'
-                            ),
-                        }
-                    },
-                    "required": ["table_json"],
-                },
-                return_schema={
-                    "type": "object",
-                    "properties": {
-                        "ok": {"type": "boolean"},
-                        "budget_left": {"type": "integer"},
-                        "queries_used": {"type": "integer"},
-                        "trap_hit": {"type": "boolean"},
-                        "counterexample": {"type": ["array", "null"]},
-                    },
-                    "required": ["ok", "budget_left", "queries_used", "trap_hit"],
-                },
-                cost=1,
-            ),
-        )
-
     def handles(self, tool_name: str) -> bool:
         return tool_name == "submit_table"
 
@@ -92,12 +63,14 @@ class MealyHypothesisContract:
         self,
         instance: TaskInstance,
         tool_name: str,
-        args: Mapping[str, Any],
+        action: Any,
     ) -> KernelJudgment:
         if not self.handles(tool_name):
             raise KeyError(tool_name)
+        if not isinstance(action, Mapping):
+            raise KernelInputError(error_malformed_hypothesis("submit action must be an object"))
 
-        raw = args.get("table_json")
+        raw = action.get("table_json")
         if not isinstance(raw, str):
             raise KernelInputError(error_malformed_hypothesis("table_json must be a string"))
 
@@ -165,7 +138,7 @@ class MealyPromptRenderer:
         self,
         ir: TaskIR,
         instance: TaskInstance,
-        contracts: Sequence[ToolContract],
+        contracts: Sequence[ToolActionContract[Any]],
         *,
         feedback: bool = False,
     ) -> list[dict[str, Any]]:
@@ -197,32 +170,22 @@ class MealyPromptRenderer:
 
 
 def build_mealy_ir() -> TaskIR:
-    action_space = EnumSpace("symbol", ALPHABET)
-    return TaskIR(
-        name=MEALY_TASK_NAME,
-        version=MEALY_TASK_VERSION,
-        kernel=MealyKernel(),
-        action_space=action_space,
-        observation_model=MealyObservationModel(),
-        hypothesis_contract=MealyHypothesisContract(),
-        resource_model=ResourceModel(unknown_tool_cost=1, trap_ends_episode=False),
-        feedback_model=FeedbackModel(reveal_counterexample=True),
-        generator=MealyGenerator(),
-        tools=(
-            ToolContract(
+    action_space = ToolActionSpace(
+        contracts=(
+            ToolActionContract(
                 name="act",
                 kind="probe",
                 description="Execute one input symbol on the hidden Mealy machine.",
-                args_schema={
-                    "type": "object",
-                    "properties": {
-                        "symbol": {
-                            **dict(action_space.json_schema()),
-                            "description": "Input symbol to execute.",
-                        }
+                action_space=ProductSpace(
+                    name="act_args",
+                    fields={
+                        "symbol": EnumSpace(
+                            "symbol",
+                            ALPHABET,
+                            description="Input symbol to execute.",
+                        )
                     },
-                    "required": ["symbol"],
-                },
+                ),
                 return_schema={
                     "type": "object",
                     "properties": {
@@ -236,7 +199,48 @@ def build_mealy_ir() -> TaskIR:
                 },
                 cost=1,
             ),
-        ),
+            ToolActionContract(
+                name="submit_table",
+                kind="submit",
+                description="Submit a complete Mealy transition table as a JSON string.",
+                action_space=ProductSpace(
+                    name="submit_table_args",
+                    fields={
+                        "table_json": JsonSchemaSpace(
+                            name="table_json",
+                            schema={"type": "string"},
+                            description=(
+                                'JSON: {"n": <int>, "start": 0, "trans": '
+                                '{"0": {"A": [next_state, output], ...}, ...}}'
+                            ),
+                        )
+                    },
+                ),
+                return_schema={
+                    "type": "object",
+                    "properties": {
+                        "ok": {"type": "boolean"},
+                        "budget_left": {"type": "integer"},
+                        "queries_used": {"type": "integer"},
+                        "trap_hit": {"type": "boolean"},
+                        "counterexample": {"type": ["array", "null"]},
+                    },
+                    "required": ["ok", "budget_left", "queries_used", "trap_hit"],
+                },
+                cost=1,
+            ),
+        )
+    )
+    return TaskIR(
+        name=MEALY_TASK_NAME,
+        version=MEALY_TASK_VERSION,
+        kernel=MealyKernel(),
+        action_space=action_space,
+        observation_model=MealyObservationModel(),
+        hypothesis_contract=MealyHypothesisContract(),
+        resource_model=ResourceModel(unknown_tool_cost=1, trap_ends_episode=False),
+        feedback_model=FeedbackModel(reveal_counterexample=True),
+        generator=MealyGenerator(),
         renderers={"prompt": MealyPromptRenderer()},
     )
 
@@ -327,9 +331,10 @@ def _counterexample(
     return [{"in": action, "out": output} for action, output in cex]
 
 
-def _format_tool(contract: ToolContract) -> str:
-    props = contract.args_schema.get("properties", {})
-    required = set(contract.args_schema.get("required", []))
+def _format_tool(contract: ToolActionContract[Any]) -> str:
+    schema = contract.to_tool_schema()["parameters"]
+    props = schema.get("properties", {})
+    required = set(schema.get("required", []))
     args = []
     if isinstance(props, dict):
         for name, schema in props.items():

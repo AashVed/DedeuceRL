@@ -43,6 +43,7 @@ def test_runtime_probe_and_correct_submit() -> None:
 
     event = runtime.call_tool("act", {"symbol": "A"})
     assert "out" in event.output
+    assert event.action == {"symbol": "A"}
     assert event.output["budget_left"] == 9
     assert runtime.queries_used == 1
 
@@ -76,6 +77,7 @@ def test_runtime_errors_are_structured_and_charge_budget() -> None:
     bad = runtime.call_tool("act", {"symbol": "Z"})
     assert bad.error is not None
     assert bad.error["code"] == ErrorCode.INVALID_ARGUMENT.value
+    assert bad.action is None
     assert runtime.budget == 0
     assert runtime.done is True
 
@@ -89,3 +91,14 @@ def test_runtime_replay_matches_events() -> None:
     result = runtime.replay(runtime.events)
     assert result.ok is True
     assert result.mismatch is None
+
+
+def test_runtime_replay_detects_action_mismatch() -> None:
+    ir, instance = _mealy()
+    runtime = EpisodeRuntime(ir, instance)
+    event = runtime.call_tool("act", {"symbol": "A"}).to_dict()
+    event["action"] = {"symbol": "B"}
+
+    result = runtime.replay([event])
+    assert result.ok is False
+    assert result.mismatch == "event 0: action mismatch"

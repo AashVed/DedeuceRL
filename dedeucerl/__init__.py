@@ -11,29 +11,58 @@ except PackageNotFoundError:  # pragma: no cover
     __version__ = "0.0.0"
 
 from dedeucerl.core.rubric import make_rubric, reward_identification
-from dedeucerl.ir import TASK_REGISTRY, TaskEntry, TaskIR, get_task_entry
+from dedeucerl.ir import (
+    TASK_REGISTRY,
+    ActionContext,
+    ActionSpace,
+    ActionValidationError,
+    EnumSpace,
+    JsonSchemaSpace,
+    MaskedSpace,
+    NonEnumerableActionSpace,
+    ProductSpace,
+    SequenceSpace,
+    TaskEntry,
+    TaskIR,
+    ToolActionContract,
+    ToolActionSpace,
+    ToolKind,
+    UnionSpace,
+    get_task_entry,
+)
 from dedeucerl.kernel import (
     KernelJudgment,
     KernelTransition,
     MealyKernel,
     SystemKernel,
     TaskInstance,
-    ToolContract,
 )
 from dedeucerl.runtime import EpisodeRuntime
 
 __all__ = [
     "__version__",
+    "ActionContext",
+    "ActionSpace",
+    "ActionValidationError",
     "EpisodeRuntime",
+    "EnumSpace",
+    "JsonSchemaSpace",
     "KernelJudgment",
     "KernelTransition",
+    "MaskedSpace",
     "MealyKernel",
+    "NonEnumerableActionSpace",
+    "ProductSpace",
+    "SequenceSpace",
     "SystemKernel",
     "TASK_REGISTRY",
     "TaskEntry",
     "TaskIR",
     "TaskInstance",
-    "ToolContract",
+    "ToolActionContract",
+    "ToolActionSpace",
+    "ToolKind",
+    "UnionSpace",
     "get_task_entry",
     "make_rubric",
     "reward_identification",

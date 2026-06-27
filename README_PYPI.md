@@ -5,7 +5,7 @@ Benchmark LLMs on active hidden-system identification.
 DedeuceRL is organized around three layers:
 
 - `dedeucerl.kernel`: pure hidden-system semantics
-- `dedeucerl.ir`: executable task contracts and renderers
+- `dedeucerl.ir`: executable action spaces, task contracts, and renderers
 - `dedeucerl.runtime`: budget, traps, events, tool dispatch, and replay
 - `dedeucerl.surface`: prompts, provider tool schemas, datasets, CLIs, and Verifiers
 

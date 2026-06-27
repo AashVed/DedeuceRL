@@ -3,23 +3,33 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, Sequence
 
+from dedeucerl.ir.actions import ToolActionContract
 from dedeucerl.ir.types import TaskIR
-from dedeucerl.kernel.types import TaskInstance, ToolContract
+from dedeucerl.kernel.types import TaskInstance
 
 
 def compile_prompt(
     ir: TaskIR,
     instance: TaskInstance,
-    contracts: list[ToolContract] | None = None,
+    contracts: Sequence[ToolActionContract[Any]] | None = None,
     *,
     feedback: bool = False,
 ) -> list[dict[str, Any]]:
     runtime_contracts = (
         list(contracts)
         if contracts is not None
-        else ir.tool_contracts(instance, ir.kernel.initial_state(instance))
+        else ir.action_contracts(
+            ir.action_context(
+                instance,
+                ir.kernel.initial_state(instance),
+                budget=instance.budget,
+                queries_used=0,
+                tool_calls=0,
+                done=instance.budget <= 0,
+            )
+        )
     )
     renderer = ir.renderers.get("prompt")
     if renderer is not None:
@@ -54,9 +64,10 @@ def compile_prompt(
     return [{"role": "system", "content": system}, {"role": "user", "content": user}]
 
 
-def _format_tool(contract: ToolContract) -> str:
-    props = contract.args_schema.get("properties", {})
-    required = set(contract.args_schema.get("required", []))
+def _format_tool(contract: ToolActionContract[Any]) -> str:
+    schema = contract.to_tool_schema()["parameters"]
+    props = schema.get("properties", {})
+    required = set(schema.get("required", []))
     args = []
     if isinstance(props, dict):
         for name, schema in props.items():
