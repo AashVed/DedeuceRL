@@ -1,19 +1,15 @@
-"""Compile kernel tool contracts to provider-neutral tool schemas."""
+"""Compile TaskIR action contracts to provider-neutral tool schemas."""
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Sequence
 
-from dedeucerl.kernel.types import ToolContract
-
-
-def compile_tool_schema(contract: ToolContract) -> dict[str, Any]:
-    return {
-        "name": contract.name,
-        "description": contract.description,
-        "parameters": dict(contract.args_schema),
-    }
+from dedeucerl.ir.actions import ToolActionContract
 
 
-def compile_tool_schemas(contracts: list[ToolContract]) -> list[dict[str, Any]]:
+def compile_tool_schema(contract: ToolActionContract[Any]) -> dict[str, Any]:
+    return contract.to_tool_schema()
+
+
+def compile_tool_schemas(contracts: Sequence[ToolActionContract[Any]]) -> list[dict[str, Any]]:
     return [compile_tool_schema(contract) for contract in contracts]

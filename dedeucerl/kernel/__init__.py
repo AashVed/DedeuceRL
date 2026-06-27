@@ -8,7 +8,6 @@ from dedeucerl.kernel.types import (
     KernelTransition,
     SystemKernel,
     TaskInstance,
-    ToolContract,
 )
 
 __all__ = [
@@ -21,5 +20,4 @@ __all__ = [
     "MealyKernel",
     "SystemKernel",
     "TaskInstance",
-    "ToolContract",
 ]

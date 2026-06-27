@@ -18,12 +18,12 @@ A new benchmark domain should define a pure `SystemKernel` and register it throu
 a `TaskIR`. The kernel should define only hidden-system semantics:
 
 - `initial_state(instance)`
-- `call(instance, state, tool_name, args)`
+- `call(instance, state, tool_name, action)`
 
-The `TaskIR` owns action spaces, tool contracts, observations, hypothesis
-judgment, resource policy, feedback policy, generators, and renderers. Let
-`EpisodeRuntime` handle budget, turns, traps, errors, events, submissions, and
-replay from that IR.
+The `TaskIR` owns executable action spaces, tool action contracts, observations,
+hypothesis judgment, resource policy, feedback policy, generators, and renderers.
+Let `EpisodeRuntime` canonicalize raw tool arguments and handle budget, turns,
+traps, errors, events, submissions, and replay from that IR.
 
 ## Before a PR
 

@@ -98,9 +98,17 @@ def check_surface_roundtrip(verbose: bool = False) -> list[str]:
         if len(dataset) != 1:
             errors.append("Dataset compiler did not produce one row")
         instance = entry.ir.generator.sample(seed=0, budget=5, n_states=2)
-        contracts = entry.ir.tool_contracts(instance, entry.ir.kernel.initial_state(instance))
-        prompt = compile_prompt(entry.ir, instance, list(contracts), feedback=True)
-        schemas = compile_tool_schemas(list(contracts))
+        context = entry.ir.action_context(
+            instance,
+            entry.ir.kernel.initial_state(instance),
+            budget=instance.budget,
+            queries_used=0,
+            tool_calls=0,
+            done=instance.budget <= 0,
+        )
+        contracts = entry.ir.action_contracts(context)
+        prompt = compile_prompt(entry.ir, instance, contracts, feedback=True)
+        schemas = compile_tool_schemas(contracts)
         if not prompt or not schemas:
             errors.append("Prompt/tool schema compilation returned empty output")
         if verbose:

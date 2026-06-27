@@ -8,9 +8,6 @@ from typing import Any, Literal, Mapping, Protocol, Sequence
 from dedeucerl.utils.errors import DedeuceError
 
 
-ToolKind = Literal["probe", "submit", "diagnostic"]
-
-
 @dataclass(frozen=True)
 class TaskInstance:
     """A complete hidden-system task instance.
@@ -36,18 +33,6 @@ class KernelParam:
     description: str
     default: Any = None
     choices: Sequence[Any] | None = None
-
-
-@dataclass(frozen=True)
-class ToolContract:
-    """A semantic operation exposed by a kernel."""
-
-    name: str
-    kind: ToolKind
-    description: str
-    args_schema: Mapping[str, Any]
-    return_schema: Mapping[str, Any]
-    cost: int = 1
 
 
 @dataclass(frozen=True)
@@ -95,5 +80,5 @@ class SystemKernel(Protocol):
         instance: TaskInstance,
         state: Any,
         tool_name: str,
-        args: Mapping[str, Any],
+        action: Any,
     ) -> KernelTransition | KernelJudgment: ...

@@ -11,12 +11,12 @@ class MyKernel:
     version = "0.1"
 
     def initial_state(self, instance): ...
-    def call(self, instance, state, tool_name, args): ...
+    def call(self, instance, state, tool_name, action): ...
 ```
 
 The `TaskIR` wraps that kernel with:
 
-- an `ActionSpace`
+- a `ToolActionSpace`
 - an `ObservationModel`
 - a `HypothesisContract`
 - a `ResourceModel`
@@ -24,9 +24,12 @@ The `TaskIR` wraps that kernel with:
 - a `TaskGeneratorSpec`
 - optional `Renderer` objects
 
-Use `ToolContract` to describe tools, `KernelTransition` for probe/diagnostic
-results, and `KernelJudgment` for submissions. `EpisodeRuntime` handles budget,
-turns, traps, errors, event logs, and replay.
+Use `ToolActionContract` plus action spaces such as `EnumSpace`, `ProductSpace`,
+`UnionSpace`, `SequenceSpace`, `JsonSchemaSpace`, and `MaskedSpace` to describe
+tools. `EpisodeRuntime` canonicalizes raw tool arguments before calling kernels.
+Use `KernelTransition` for probe/diagnostic results and `KernelJudgment` for
+submissions. `EpisodeRuntime` handles budget, turns, traps, errors, event logs,
+and replay.
 
 Surfaces compile TaskIR into:
 

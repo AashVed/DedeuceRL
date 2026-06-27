@@ -5,13 +5,13 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Mapping, Sequence
 
+from dedeucerl.ir.actions import ActionContext, ActionValidationError, ToolActionContract
 from dedeucerl.ir.types import TaskIR
 from dedeucerl.kernel.types import (
     KernelInputError,
     KernelJudgment,
     KernelTransition,
     TaskInstance,
-    ToolContract,
 )
 from dedeucerl.utils import (
     DedeuceError,
@@ -20,7 +20,6 @@ from dedeucerl.utils import (
     error_invalid_argument,
     error_unknown_tool,
 )
-from dedeucerl.utils.schema import validate_jsonschema
 
 
 @dataclass(frozen=True)
@@ -28,6 +27,7 @@ class EpisodeEvent:
     event: str
     tool_name: str
     args: Mapping[str, Any]
+    action: Any | None
     output: Mapping[str, Any]
     error: Mapping[str, Any] | None
     kind: str | None
@@ -45,6 +45,7 @@ class EpisodeEvent:
             "event": self.event,
             "tool_name": self.tool_name,
             "args": dict(self.args),
+            "action": self.action,
             "output": dict(self.output),
             "error": None if self.error is None else dict(self.error),
             "kind": self.kind,
@@ -88,8 +89,21 @@ class EpisodeRuntime:
         if self.budget <= 0:
             self.done = True
 
-    def contracts(self) -> list[ToolContract]:
-        return list(self.ir.tool_contracts(self.instance, self.state))
+    def action_context(self) -> ActionContext:
+        return self.ir.action_context(
+            self.instance,
+            self.state,
+            budget=self.budget,
+            queries_used=self.queries_used,
+            tool_calls=self.tool_calls,
+            done=self.done,
+        )
+
+    def contracts(self) -> list[ToolActionContract[Any]]:
+        return list(self.ir.action_contracts(self.action_context()))
+
+    def tool_schemas(self) -> list[dict[str, Any]]:
+        return self.ir.tool_schemas(self.action_context())
 
     def call_tool(self, tool_name: str, raw_args: Mapping[str, Any] | None) -> EpisodeEvent:
         args = dict(raw_args or {})
@@ -137,14 +151,27 @@ class EpisodeRuntime:
                 budget_before=budget_before,
             )
 
-        schema_error = validate_jsonschema(args, dict(contract.args_schema))
-        if schema_error:
+        try:
+            action = contract.canonicalize(args)
+        except ActionValidationError as e:
             return self._record_error(
                 tool_name,
                 args,
                 error_invalid_argument(
                     f"Invalid arguments for tool '{tool_name}'",
-                    details={"reason": schema_error, "tool": tool_name},
+                    details={"reason": str(e), "tool": tool_name},
+                ),
+                contract=contract,
+                cost=cost,
+                budget_before=budget_before,
+            )
+        except Exception as e:
+            return self._record_error(
+                tool_name,
+                args,
+                error_invalid_argument(
+                    f"Action canonicalization for tool '{tool_name}' raised exception",
+                    details={"tool": tool_name, "error": str(e)},
                 ),
                 contract=contract,
                 cost=cost,
@@ -152,7 +179,7 @@ class EpisodeRuntime:
             )
 
         try:
-            result = self.ir.call(self.instance, self.state, tool_name, args)
+            result = self.ir.call(self.instance, self.state, tool_name, action)
         except KernelInputError as e:
             return self._record_error(
                 tool_name,
@@ -161,6 +188,7 @@ class EpisodeRuntime:
                 contract=contract,
                 cost=cost,
                 budget_before=budget_before,
+                action=action,
             )
         except Exception as e:
             return self._record_error(
@@ -173,6 +201,7 @@ class EpisodeRuntime:
                 contract=contract,
                 cost=cost,
                 budget_before=budget_before,
+                action=action,
             )
 
         self.tool_calls += 1
@@ -211,6 +240,7 @@ class EpisodeRuntime:
                 contract=contract,
                 cost=cost,
                 budget_before=budget_before,
+                action=action,
             )
 
         if self.budget <= 0 and not self.ok:
@@ -220,6 +250,7 @@ class EpisodeRuntime:
             event="tool_result",
             tool_name=tool_name,
             args=args,
+            action=action,
             output=output,
             error=None,
             kind=contract.kind,
@@ -245,6 +276,13 @@ class EpisodeRuntime:
                 event_dict.get("args") if isinstance(event_dict.get("args"), Mapping) else {},
             )
             replayed.append(got)
+            expected_action = event_dict.get("action")
+            if got.action != expected_action:
+                return ReplayResult(
+                    ok=False,
+                    events=replayed,
+                    mismatch=f"event {idx}: action mismatch",
+                )
             expected_output = event_dict.get("output")
             if got.output != expected_output:
                 return ReplayResult(
@@ -266,7 +304,7 @@ class EpisodeRuntime:
             "cs": self.state,
         }
 
-    def _find_contract(self, tool_name: str) -> ToolContract | None:
+    def _find_contract(self, tool_name: str) -> ToolActionContract[Any] | None:
         return next((c for c in self.contracts() if c.name == tool_name), None)
 
     def _charge(self, cost: int) -> bool:
@@ -292,9 +330,10 @@ class EpisodeRuntime:
         args: Mapping[str, Any],
         error: DedeuceError,
         *,
-        contract: ToolContract | None,
+        contract: ToolActionContract[Any] | None,
         cost: int,
         budget_before: int,
+        action: Any | None = None,
     ) -> EpisodeEvent:
         if self.budget <= 0 and not self.ok:
             self.done = True
@@ -308,6 +347,7 @@ class EpisodeRuntime:
             event="tool_result",
             tool_name=tool_name,
             args=dict(args),
+            action=action,
             output=output,
             error=error.to_dict(),
             kind=None if contract is None else contract.kind,

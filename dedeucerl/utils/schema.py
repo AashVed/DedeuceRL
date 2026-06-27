@@ -1,7 +1,7 @@
 """Lightweight JSONSchema validation utilities.
 
-DedeuceRL uses JSONSchema-like dicts from TaskIR `ToolContract` objects and
-task-specific hypothesis contracts.
+DedeuceRL uses JSONSchema-like dicts from TaskIR action spaces and task-specific
+hypothesis contracts.
 
 We intentionally implement a small subset of JSONSchema to avoid adding a hard
 runtime dependency. The supported keywords are chosen to cover the schemas used

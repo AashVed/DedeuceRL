@@ -23,7 +23,7 @@ class MealyKernel:
     """Pure transition semantics for hidden Mealy-machine identification."""
 
     name = "mealy"
-    version = "2.1"
+    version = "2.2"
 
     def initial_state(self, instance: TaskInstance) -> int:
         table = instance.private["table"]
@@ -34,19 +34,21 @@ class MealyKernel:
         instance: TaskInstance,
         state: Any,
         tool_name: str,
-        args: Mapping[str, Any],
+        action: Any,
     ) -> KernelTransition:
         if tool_name != "act":
             raise KeyError(tool_name)
-        return self._act(instance, int(state), args)
+        return self._act(instance, int(state), action)
 
     def _act(
         self,
         instance: TaskInstance,
         state: int,
-        args: Mapping[str, Any],
+        action: Any,
     ) -> KernelTransition:
-        symbol = str(args.get("symbol", ""))
+        if not isinstance(action, Mapping):
+            raise KernelInputError(error_invalid_symbol(str(action), ALPHABET))
+        symbol = str(action.get("symbol", ""))
         if symbol not in ALPHABET:
             raise KernelInputError(error_invalid_symbol(symbol, ALPHABET))
 

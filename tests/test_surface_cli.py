@@ -8,13 +8,15 @@ from pathlib import Path
 
 import verifiers as vf
 
-from dedeucerl.ir import TASK_REGISTRY
+from dedeucerl.ir import TASK_REGISTRY, EnumSpace, ToolActionContract
 from dedeucerl.surface import (
     build_dataset_from_split,
     compile_prompt,
     compile_tool_schemas,
     generate_split,
 )
+from dedeucerl.surface.prompt import _format_tool
+from dedeucerl.surface.vf import KernelToolEnv
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -32,10 +34,18 @@ def _run_module(module: str, args: list[str]) -> subprocess.CompletedProcess[str
 def test_surface_compilers_roundtrip() -> None:
     entry = TASK_REGISTRY["mealy"]
     instance = entry.ir.generator.sample(seed=0, budget=5, n_states=2)
-    contracts = entry.ir.tool_contracts(instance, entry.ir.kernel.initial_state(instance))
+    context = entry.ir.action_context(
+        instance,
+        entry.ir.kernel.initial_state(instance),
+        budget=instance.budget,
+        queries_used=0,
+        tool_calls=0,
+        done=False,
+    )
+    contracts = entry.ir.action_contracts(context)
 
-    prompt = compile_prompt(entry.ir, instance, list(contracts), feedback=True)
-    schemas = compile_tool_schemas(list(contracts))
+    prompt = compile_prompt(entry.ir, instance, contracts, feedback=True)
+    schemas = compile_tool_schemas(contracts)
     assert "OBSERVATION" in prompt[1]["content"]
     assert {schema["name"] for schema in schemas} == {"act", "submit_table"}
 
@@ -43,6 +53,18 @@ def test_surface_compilers_roundtrip() -> None:
     dataset = build_dataset_from_split(split, "dev", feedback=False)
     assert len(dataset) == 2
     assert json.loads(dataset[0]["answer"])["kernel_name"] == "mealy"
+
+
+def test_prompt_tool_format_uses_projected_tool_schema() -> None:
+    contract = ToolActionContract(
+        name="choose",
+        kind="probe",
+        description="Choose a value.",
+        action_space=EnumSpace("choice", ["A", "B"]),
+        return_schema={"type": "object"},
+    )
+
+    assert "value: string one of ['A', 'B'] required" in _format_tool(contract)
 
 
 def test_vf_env_loads_with_seeds() -> None:
@@ -63,6 +85,34 @@ def test_vf_env_loads_with_seeds() -> None:
     result = env.tools[0](symbol="A")
     assert json.loads(result)["queries_used"] == 1
     assert state["queries_used"] == 1
+
+
+def test_vf_tool_builder_includes_optional_properties() -> None:
+    env = object.__new__(KernelToolEnv)
+    calls: list[tuple[str, dict]] = []
+
+    def dispatch(name: str, kwargs: dict) -> str:
+        calls.append((name, kwargs))
+        return json.dumps({"ok": True})
+
+    env._dispatch_tool = dispatch  # type: ignore[method-assign]
+    tool = env._make_tool(
+        "probe",
+        {
+            "type": "object",
+            "properties": {
+                "required_arg": {"type": "string"},
+                "optional_arg": {"type": "integer"},
+            },
+            "required": ["required_arg"],
+        },
+    )
+
+    assert json.loads(tool(required_arg="x")) == {"ok": True}
+    assert calls[-1] == ("probe", {"required_arg": "x"})
+
+    assert json.loads(tool(required_arg="x", optional_arg=2)) == {"ok": True}
+    assert calls[-1] == ("probe", {"required_arg": "x", "optional_arg": 2})
 
 
 def test_generate_eval_parallel_and_selfcheck(tmp_path: Path) -> None:

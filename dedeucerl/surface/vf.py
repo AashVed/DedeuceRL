@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import keyword
 from typing import Callable
 
 import verifiers as vf
@@ -54,26 +55,45 @@ class KernelToolEnv(vf.StatefulToolEnv):
             return []
         instance = instance_from_dict(json.loads(dataset[0]["answer"]))
         entry = get_task_entry(instance.kernel_name)
-        contracts = entry.ir.tool_contracts(instance, entry.ir.kernel.initial_state(instance))
-        return [self._make_tool(contract.name, contract.args_schema) for contract in contracts]
+        context = entry.ir.action_context(
+            instance,
+            entry.ir.kernel.initial_state(instance),
+            budget=instance.budget,
+            queries_used=0,
+            tool_calls=0,
+            done=instance.budget <= 0,
+        )
+        contracts = entry.ir.action_contracts(context)
+        return [
+            self._make_tool(contract.name, contract.to_tool_schema()["parameters"])
+            for contract in contracts
+        ]
 
-    def _make_tool(self, name: str, args_schema: dict) -> Callable[..., str]:
+    def _make_tool(self, name: str, parameters_schema: dict) -> Callable[..., str]:
         if not name.isidentifier():
             raise ValueError(f"Tool name must be a valid Python identifier: {name!r}")
-        props = args_schema.get("properties", {})
-        required = args_schema.get("required", [])
+        props = parameters_schema.get("properties", {})
+        required = parameters_schema.get("required", [])
         if not isinstance(props, dict):
             props = {}
         if not isinstance(required, list):
             required = []
 
-        arg_names = [str(arg) for arg in required if arg in props]
-        signature = ", ".join(arg_names)
-        payload = ", ".join(f"{arg!r}: {arg}" for arg in arg_names)
-        source = (
-            f"def {name}({signature}) -> str:\n"
-            f"    return _dispatch({name!r}, {{{payload}}})\n"
-        )
+        required_names = [str(arg) for arg in required if arg in props]
+        optional_names = [str(arg) for arg in props if arg not in required_names]
+        arg_names = [*required_names, *optional_names]
+        invalid = [arg for arg in arg_names if not arg.isidentifier() or keyword.iskeyword(arg)]
+        if invalid:
+            raise ValueError(f"Tool arguments must be valid Python identifiers: {invalid!r}")
+
+        signature_parts = [*required_names, *(f"{arg}=None" for arg in optional_names)]
+        lines = [f"def {name}({', '.join(signature_parts)}) -> str:", "    payload = {}"]
+        lines.extend(f"    payload[{arg!r}] = {arg}" for arg in required_names)
+        for arg in optional_names:
+            lines.append(f"    if {arg} is not None:")
+            lines.append(f"        payload[{arg!r}] = {arg}")
+        lines.append(f"    return _dispatch({name!r}, payload)")
+        source = "\n".join(lines) + "\n"
         namespace = {"_dispatch": self._dispatch_tool}
         exec(source, namespace)
         tool = namespace[name]
