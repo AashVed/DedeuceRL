@@ -1,29 +1,29 @@
 # Contributing
 
-DedeuceRL is currently an alpha kernel/runtime/surface framework. Prefer clean
+DedeuceRL is currently an alpha TaskIR/runtime/surface framework. Prefer clean
 architecture over compatibility shims.
 
 ## Quality Bar
 
 - Keep kernel code pure: no Verifiers, datasets, provider adapters, prompts, or CLI imports.
+- Put executable task contracts in `dedeucerl.ir`, not in kernels or surfaces.
 - Put episode mechanics in `dedeucerl.runtime`, not in kernels or CLIs.
 - Put prompts, tool-schema conversion, datasets, Verifiers, and CLIs in `dedeucerl.surface` or CLI modules.
 - Do not introduce dead compatibility code for the old skin architecture.
 - Add focused tests for every public behavior change.
 
-## Adding a Kernel
+## Adding a Task
 
-A new benchmark domain should implement `SystemKernel` and usually a sampler.
-The kernel should define:
+A new benchmark domain should define a pure `SystemKernel` and register it through
+a `TaskIR`. The kernel should define only hidden-system semantics:
 
 - `initial_state(instance)`
-- `public_observation(instance)`
-- `tool_contracts(instance, state)`
 - `call(instance, state, tool_name, args)`
 
-Use `ToolContract`, `KernelTransition`, and `KernelJudgment` from
-`dedeucerl.kernel`. Let `EpisodeRuntime` handle budget, turns, traps, errors,
-events, submissions, and replay.
+The `TaskIR` owns action spaces, tool contracts, observations, hypothesis
+judgment, resource policy, feedback policy, generators, and renderers. Let
+`EpisodeRuntime` handle budget, turns, traps, errors, events, submissions, and
+replay from that IR.
 
 ## Before a PR
 

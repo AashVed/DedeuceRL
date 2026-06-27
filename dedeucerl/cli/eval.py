@@ -1,4 +1,4 @@
-"""dedeucerl-eval: run model evaluations against kernel runtimes."""
+"""dedeucerl-eval: run model evaluations against TaskIR runtimes."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from typing import Any, Callable
 from dedeucerl.adapters import get_adapter
 from dedeucerl.adapters.base import decompose_model_spec
 from dedeucerl.core import make_rubric
-from dedeucerl.kernel import KERNEL_REGISTRY
+from dedeucerl.ir import TASK_REGISTRY
 from dedeucerl.runtime import EpisodeRuntime
 from dedeucerl.surface.dataset import build_dataset_from_split, instance_from_dict, load_split
 from dedeucerl.surface.tools import compile_tool_schemas
@@ -32,7 +32,7 @@ def parse_args() -> argparse.Namespace:
         prog="dedeucerl-eval",
         description="Run DedeuceRL evaluations.",
     )
-    parser.add_argument("--skin", "--kernel", dest="kernel", required=True, choices=KERNEL_REGISTRY)
+    parser.add_argument("--skin", "--kernel", "--task", dest="kernel", required=True, choices=TASK_REGISTRY)
     parser.add_argument("--split", required=True)
     parser.add_argument("--subset", default=None)
     parser.add_argument("--model", default="openai:gpt-4o")
@@ -66,8 +66,8 @@ async def run_episode(
     trace_base: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     instance = instance_from_dict(json.loads(item["answer"]))
-    entry = KERNEL_REGISTRY[instance.kernel_name]
-    runtime = EpisodeRuntime(entry.kernel, instance, feedback=feedback)
+    entry = TASK_REGISTRY[instance.kernel_name]
+    runtime = EpisodeRuntime(entry.ir, instance, feedback=feedback)
     messages = list(item["prompt"])
     max_turns = _derive_max_turns(instance.budget, feedback=feedback)
     usage_prompt = 0

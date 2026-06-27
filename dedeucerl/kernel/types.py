@@ -82,17 +82,13 @@ class SystemKernel(Protocol):
     """Pure hidden-system semantics.
 
     Implementations must not depend on Verifiers, datasets, provider adapters,
-    prompts, or CLIs.
+    prompts, CLIs, or TaskIR surface compilers.
     """
 
     name: str
     version: str
 
     def initial_state(self, instance: TaskInstance) -> Any: ...
-
-    def public_observation(self, instance: TaskInstance) -> Mapping[str, Any]: ...
-
-    def tool_contracts(self, instance: TaskInstance, state: Any) -> Sequence[ToolContract]: ...
 
     def call(
         self,
@@ -101,12 +97,3 @@ class SystemKernel(Protocol):
         tool_name: str,
         args: Mapping[str, Any],
     ) -> KernelTransition | KernelJudgment: ...
-
-
-class TaskSampler(Protocol):
-    """Deterministic task sampler for a kernel."""
-
-    kernel: SystemKernel
-    params: Mapping[str, KernelParam]
-
-    def sample(self, *, seed: int, budget: int, **kwargs: Any) -> TaskInstance: ...

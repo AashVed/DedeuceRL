@@ -1,7 +1,7 @@
 """Error types and helpers for DedeuceRL.
 
 This module defines a small, stable set of machine-readable error codes.
-Skins should prefer these codes for *framework-level* failures (budget, episode
+Tasks should prefer these codes for *framework-level* failures (budget, episode
 state, JSON parsing), while still being free to include domain-specific fields
 in tool payloads (e.g., HTTP-like status codes).
 
@@ -35,7 +35,7 @@ class ErrorCode(str, Enum):
     INVALID_JSON = "E102"
     UNKNOWN_TOOL = "E103"
 
-    # Skin / domain errors (optional)
+    # Task/domain errors (optional)
     INVALID_SYMBOL = "E201"
     INVALID_METHOD = "E203"
     INVALID_ENDPOINT = "E204"

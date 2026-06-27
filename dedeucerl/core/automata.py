@@ -10,7 +10,7 @@ This module provides domain-agnostic algorithms that kernels can leverage:
 These algorithms work with a generic transition system abstraction:
     TransitionFn: (state, action) -> (next_state, output)
 
-Skins provide adapters to convert their domain-specific structures
+Tasks provide adapters to convert their domain-specific structures
 to this generic interface.
 
 References:
@@ -56,7 +56,7 @@ class TransitionSystem(Generic[State, Action, Output]):
     - DFA/NFA: State × Symbol → State (output is accept/reject)
     - Protocols: State × (Method, Endpoint) → State × StatusCode
 
-    Skins convert their domain-specific structures to this interface
+    Tasks convert their domain-specific structures to this interface
     to leverage core algorithms.
 
     Attributes:

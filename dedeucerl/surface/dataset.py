@@ -1,4 +1,4 @@
-"""Dataset and split compilers for kernels."""
+"""Dataset and split compilers for TaskIR tasks."""
 
 from __future__ import annotations
 
@@ -8,8 +8,9 @@ from typing import Any, Mapping
 
 from datasets import Dataset
 
-from dedeucerl.kernel.registry import get_kernel_entry
-from dedeucerl.kernel.types import TaskInstance, TaskSampler
+from dedeucerl.ir.types import TaskIR
+from dedeucerl.ir.registry import get_task_entry
+from dedeucerl.kernel.types import TaskInstance
 from dedeucerl.surface.prompt import compile_prompt
 
 
@@ -40,7 +41,7 @@ def instance_from_dict(data: Mapping[str, Any]) -> TaskInstance:
 
 
 def generate_split(
-    sampler: TaskSampler,
+    task: TaskIR,
     *,
     seeds: list[int],
     budget: int,
@@ -48,17 +49,17 @@ def generate_split(
     **params: Any,
 ) -> dict[str, Any]:
     items = [
-        {"instance": instance_to_dict(sampler.sample(seed=seed, budget=budget, **params))}
+        {"instance": instance_to_dict(task.generator.sample(seed=seed, budget=budget, **params))}
         for seed in seeds
     ]
     return {
         "version": 2,
         "metadata": {
-            "kernel": sampler.kernel.name,
-            "kernel_version": sampler.kernel.version,
+            "kernel": task.name,
+            "kernel_version": task.version,
         },
         subset_name: {
-            "kernel": sampler.kernel.name,
+            "kernel": task.name,
             "budget": int(budget),
             "params": dict(params),
             "items": items,
@@ -94,13 +95,9 @@ def build_dataset_from_split(
     for item in items:
         instance = instance_from_dict(item["instance"])
 
-        entry = get_kernel_entry(instance.kernel_name)
-        runtime_contracts = entry.kernel.tool_contracts(
-            instance, entry.kernel.initial_state(instance)
-        )
-        prompts.append(
-            compile_prompt(entry.kernel, instance, list(runtime_contracts), feedback=feedback)
-        )
+        entry = get_task_entry(instance.kernel_name)
+        runtime_contracts = entry.ir.tool_contracts(instance, entry.ir.kernel.initial_state(instance))
+        prompts.append(compile_prompt(entry.ir, instance, list(runtime_contracts), feedback=feedback))
         answers.append(json.dumps(instance_to_dict(instance)))
 
     return Dataset.from_dict({"prompt": prompts, "answer": answers})

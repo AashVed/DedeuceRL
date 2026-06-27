@@ -15,11 +15,12 @@ DedeuceRL is split into three layers:
 | Layer | Responsibility |
 |---|---|
 | `dedeucerl.kernel` | Pure hidden-system semantics. No LLMs, prompts, datasets, provider adapters, or Verifiers dependency. |
+| `dedeucerl.ir` | Executable task contracts: action spaces, observations, hypothesis checks, resources, feedback, generators, and renderers. |
 | `dedeucerl.runtime` | Budget, turns, traps, tool execution, structured events, submissions, and replay. |
 | `dedeucerl.surface` | Prompt/tool-schema/dataset/Verifiers/CLI compilers. |
 
-The extension point is `SystemKernel`: implement a small pure kernel and optional
-sampler, then the engine provides the runtime and surfaces.
+The extension point is `TaskIR`: pair a small pure `SystemKernel` with executable
+contracts, then the engine provides the runtime and surfaces.
 
 `mealy` is the current reference kernel. Protocol/APIEnv/ExprPolicy will return
 as kernels after the architecture stabilizes.
@@ -49,12 +50,12 @@ dedeucerl-aggregate results.jsonl --format markdown
 ```python
 import json
 
-from dedeucerl.kernel import KERNEL_REGISTRY
+from dedeucerl.ir import TASK_REGISTRY
 from dedeucerl.runtime import EpisodeRuntime
 
-entry = KERNEL_REGISTRY["mealy"]
-instance = entry.sampler.sample(seed=0, budget=25, n_states=3, trap=True)
-runtime = EpisodeRuntime(entry.kernel, instance, feedback=True)
+entry = TASK_REGISTRY["mealy"]
+instance = entry.ir.generator.sample(seed=0, budget=25, n_states=3, trap=True)
+runtime = EpisodeRuntime(entry.ir, instance, feedback=True)
 
 print(runtime.call_tool("act", {"symbol": "A"}).output)
 print(runtime.call_tool("submit_table", {"table_json": json.dumps(instance.private["table"])}).output)
@@ -84,18 +85,18 @@ env = vf.load_environment(
 )
 ```
 
-## Creating Kernels
+## Creating Tasks
 
 See [docs/KERNELS.md](docs/KERNELS.md). A kernel provides:
 
 - `initial_state(instance)`
-- `public_observation(instance)`
-- `tool_contracts(instance, state)`
 - `call(instance, state, tool_name, args)`
 
-The runtime handles budget, errors, trap state, submissions, event logs, and
-replay. Surfaces compile the same contracts into prompts, provider tool schemas,
-datasets, Verifiers envs, and CLI workflows.
+A `TaskIR` wraps that kernel with action spaces, observation models, hypothesis
+contracts, resources, feedback, generators, and renderers. The runtime handles
+budget, errors, trap state, submissions, event logs, and replay. Surfaces compile
+the same IR into prompts, provider tool schemas, datasets, Verifiers envs, and
+CLI workflows.
 
 ## Development
 

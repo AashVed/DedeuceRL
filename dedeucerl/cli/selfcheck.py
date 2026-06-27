@@ -1,4 +1,4 @@
-"""dedeucerl-selfcheck: validate the kernel/runtime/surface installation."""
+"""dedeucerl-selfcheck: validate the TaskIR/runtime/surface installation."""
 
 from __future__ import annotations
 
@@ -19,11 +19,20 @@ def parse_args() -> argparse.Namespace:
 def check_imports() -> list[str]:
     errors: list[str] = []
     try:
-        from dedeucerl.kernel import KERNEL_REGISTRY, MealyKernel, TaskInstance
+        from dedeucerl.ir import TASK_REGISTRY, TaskIR
+        from dedeucerl.kernel import MealyKernel, TaskInstance
         from dedeucerl.runtime import EpisodeRuntime
         from dedeucerl.surface import compile_prompt, compile_tool_schemas
 
-        _ = (KERNEL_REGISTRY, MealyKernel, TaskInstance, EpisodeRuntime, compile_prompt, compile_tool_schemas)
+        _ = (
+            TASK_REGISTRY,
+            MealyKernel,
+            TaskIR,
+            TaskInstance,
+            EpisodeRuntime,
+            compile_prompt,
+            compile_tool_schemas,
+        )
     except Exception as e:
         errors.append(f"Failed to import architecture modules: {e}")
 
@@ -47,13 +56,12 @@ def check_imports() -> list[str]:
 def check_mealy_runtime(verbose: bool = False) -> list[str]:
     errors: list[str] = []
     try:
-        from dedeucerl.kernel import KERNEL_REGISTRY
+        from dedeucerl.ir import TASK_REGISTRY
         from dedeucerl.runtime import EpisodeRuntime
 
-        sampler = KERNEL_REGISTRY["mealy"].sampler
-        kernel = KERNEL_REGISTRY["mealy"].kernel
-        instance = sampler.sample(seed=42, budget=10, n_states=3, trap=True)
-        runtime = EpisodeRuntime(kernel, instance, feedback=True)
+        ir = TASK_REGISTRY["mealy"].ir
+        instance = ir.generator.sample(seed=42, budget=10, n_states=3, trap=True)
+        runtime = EpisodeRuntime(ir, instance, feedback=True)
         contracts = runtime.contracts()
 
         if verbose:
@@ -76,7 +84,7 @@ def check_mealy_runtime(verbose: bool = False) -> list[str]:
 def check_surface_roundtrip(verbose: bool = False) -> list[str]:
     errors: list[str] = []
     try:
-        from dedeucerl.kernel import KERNEL_REGISTRY
+        from dedeucerl.ir import TASK_REGISTRY
         from dedeucerl.surface import (
             build_dataset_from_split,
             compile_prompt,
@@ -84,14 +92,14 @@ def check_surface_roundtrip(verbose: bool = False) -> list[str]:
             generate_split,
         )
 
-        entry = KERNEL_REGISTRY["mealy"]
-        split = generate_split(entry.sampler, seeds=[0], budget=5, subset_name="dev", n_states=2)
+        entry = TASK_REGISTRY["mealy"]
+        split = generate_split(entry.ir, seeds=[0], budget=5, subset_name="dev", n_states=2)
         dataset = build_dataset_from_split(split, "dev", feedback=True)
         if len(dataset) != 1:
             errors.append("Dataset compiler did not produce one row")
-        instance = entry.sampler.sample(seed=0, budget=5, n_states=2)
-        contracts = entry.kernel.tool_contracts(instance, entry.kernel.initial_state(instance))
-        prompt = compile_prompt(entry.kernel, instance, list(contracts), feedback=True)
+        instance = entry.ir.generator.sample(seed=0, budget=5, n_states=2)
+        contracts = entry.ir.tool_contracts(instance, entry.ir.kernel.initial_state(instance))
+        prompt = compile_prompt(entry.ir, instance, list(contracts), feedback=True)
         schemas = compile_tool_schemas(list(contracts))
         if not prompt or not schemas:
             errors.append("Prompt/tool schema compilation returned empty output")

@@ -1,4 +1,4 @@
-"""Verifiers surface for kernel runtimes."""
+"""Verifiers surface for TaskIR runtimes."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ import verifiers as vf
 from verifiers.types import State
 
 from dedeucerl.core.rubric import make_rubric
-from dedeucerl.kernel.registry import get_kernel_entry
+from dedeucerl.ir.registry import get_task_entry
 from dedeucerl.runtime import EpisodeRuntime
 from dedeucerl.surface.dataset import instance_from_dict
 
@@ -33,8 +33,8 @@ class KernelToolEnv(vf.StatefulToolEnv):
     async def setup_state(self, state: State, **kwargs) -> State:
         _ = kwargs
         instance = instance_from_dict(json.loads(state["answer"]))
-        entry = get_kernel_entry(instance.kernel_name)
-        runtime = EpisodeRuntime(entry.kernel, instance, feedback=self.feedback_enabled)
+        entry = get_task_entry(instance.kernel_name)
+        runtime = EpisodeRuntime(entry.ir, instance, feedback=self.feedback_enabled)
         state.update(runtime.state_dict())
         state["_runtime"] = runtime
         self._runtime_ref = runtime
@@ -53,8 +53,8 @@ class KernelToolEnv(vf.StatefulToolEnv):
         if len(dataset) <= 0:
             return []
         instance = instance_from_dict(json.loads(dataset[0]["answer"]))
-        entry = get_kernel_entry(instance.kernel_name)
-        contracts = entry.kernel.tool_contracts(instance, entry.kernel.initial_state(instance))
+        entry = get_task_entry(instance.kernel_name)
+        contracts = entry.ir.tool_contracts(instance, entry.ir.kernel.initial_state(instance))
         return [self._make_tool(contract.name, contract.args_schema) for contract in contracts]
 
     def _make_tool(self, name: str, args_schema: dict) -> Callable[..., str]:
