@@ -45,16 +45,6 @@ class KernelTransition:
     info: Mapping[str, Any] = field(default_factory=dict)
 
 
-@dataclass(frozen=True)
-class KernelJudgment:
-    """Result of a hypothesis submission operation."""
-
-    ok: bool
-    observation: Mapping[str, Any]
-    counterexample: Any | None = None
-    info: Mapping[str, Any] = field(default_factory=dict)
-
-
 class KernelInputError(Exception):
     """A user-facing kernel input error returned through runtime envelopes."""
 
@@ -81,4 +71,4 @@ class SystemKernel(Protocol):
         state: Any,
         tool_name: str,
         action: Any,
-    ) -> KernelTransition | KernelJudgment: ...
+    ) -> KernelTransition: ...

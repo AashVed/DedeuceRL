@@ -1,6 +1,6 @@
 [project]
 name = "dedeucerl"
-version = "1.0.12"
+version = "1.0.13"
 description = "A modular framework for active system identification benchmarks"
 readme = {file = "README_PYPI.md", content-type = "text/markdown"}
 license = "MIT"

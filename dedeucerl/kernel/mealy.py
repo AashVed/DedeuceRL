@@ -10,6 +10,7 @@ from dedeucerl.core.automata import (
     is_minimal,
     verify_trap_free_path_exists,
 )
+from dedeucerl.core.transducers import parse_transducer_transitions
 from dedeucerl.kernel.types import KernelInputError, KernelTransition, TaskInstance
 from dedeucerl.utils import error_invalid_symbol
 from dedeucerl.utils.rng import get_rng
@@ -52,7 +53,7 @@ class MealyKernel:
         if symbol not in ALPHABET:
             raise KernelInputError(error_invalid_symbol(symbol, ALPHABET))
 
-        trans = parse_transitions(instance.private["table"])
+        trans = parse_transducer_transitions(instance.private["table"])
         next_state, out = trans[state][symbol]
         trap_pairs = {(int(s), str(a)) for s, a in instance.private.get("trap_pairs", [])}
         return KernelTransition(
@@ -115,13 +116,3 @@ def generate_mealy_system(seed: int, n_states: int = 3, trap: bool = True) -> di
         },
     }
     return {"table": table, "trap_pairs": [[s, a] for s, a in trap_pairs]}
-
-
-def parse_transitions(table: Mapping[str, Any]) -> dict[int, dict[str, tuple[int, int]]]:
-    raw = table.get("trans", {})
-    if not isinstance(raw, Mapping):
-        raise ValueError("trans must be a mapping")
-    return {
-        int(s): {str(a): (int(v[0]), int(v[1])) for a, v in m.items()}
-        for s, m in raw.items()
-    }

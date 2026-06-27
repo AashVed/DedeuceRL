@@ -5,6 +5,7 @@ from typing import Any, Mapping
 
 from dedeucerl.ir import (
     EnumSpace,
+    ExactJSONContract,
     FeedbackModel,
     MaskedSpace,
     ProductSpace,
@@ -14,7 +15,6 @@ from dedeucerl.ir import (
     ToolActionSpace,
 )
 from dedeucerl.kernel.types import (
-    KernelJudgment,
     KernelParam,
     KernelTransition,
     TaskInstance,
@@ -52,22 +52,6 @@ class FakeObservation:
 
 
 @dataclass(frozen=True)
-class FakeHypothesis:
-    def handles(self, tool_name: str) -> bool:
-        return tool_name == "submit"
-
-    def judge(
-        self,
-        instance: TaskInstance,
-        tool_name: str,
-        action: Any,
-    ) -> KernelJudgment:
-        _ = (instance, tool_name)
-        ok = bool(action["answer"])
-        return KernelJudgment(ok=ok, observation={"ok": ok}, counterexample={"answer": True})
-
-
-@dataclass(frozen=True)
 class FakeGenerator:
     params: Mapping[str, KernelParam]
 
@@ -78,7 +62,7 @@ class FakeGenerator:
             seed=seed,
             kernel_name="fake",
             kernel_version="0.1",
-            private={},
+            private={"answer": True},
             params={},
             budget=budget,
         )
@@ -102,21 +86,17 @@ def _fake_ir(*, reveal_counterexample: bool = True) -> TaskIR:
                     return_schema={"type": "object"},
                     cost=1,
                 ),
-                ToolActionContract(
-                    name="submit",
-                    kind="submit",
-                    description="Submit a boolean answer.",
-                    action_space=ProductSpace(
-                        "submit_args",
-                        {"answer": EnumSpace("answer", [True, False])},
-                    ),
-                    return_schema={"type": "object"},
-                    cost=2,
-                ),
             )
         ),
         observation_model=FakeObservation(),
-        hypothesis_contract=FakeHypothesis(),
+        hypothesis_contract=ExactJSONContract(
+            tool_name="submit",
+            description="Submit a boolean answer.",
+            action_field="answer",
+            expected_private_key="answer",
+            schema={"type": "boolean"},
+            cost=2,
+        ),
         resource_model=ResourceModel(unknown_tool_cost=3),
         feedback_model=FeedbackModel(reveal_counterexample=reveal_counterexample),
         generator=FakeGenerator(params={}),
@@ -157,6 +137,72 @@ def test_runtime_uses_ir_resources_and_feedback() -> None:
     assert failed.action == {"answer": False}
     assert failed.output["counterexample"] is None
     assert runtime.budget == 0
+
+
+def test_task_ir_rejects_submit_tools_outside_hypothesis_contract() -> None:
+    try:
+        TaskIR(
+            name="fake",
+            version="0.1",
+            kernel=FakeKernel(),
+            action_space=ToolActionSpace(
+                contracts=(
+                    ToolActionContract(
+                        name="submit",
+                        kind="submit",
+                        description="Invalid direct submit.",
+                        action_space=ProductSpace(
+                            "submit_args",
+                            {"answer": EnumSpace("answer", [True, False])},
+                        ),
+                        return_schema={"type": "object"},
+                        cost=1,
+                    ),
+                )
+            ),
+            observation_model=FakeObservation(),
+            hypothesis_contract=ExactJSONContract(tool_name="submit"),
+            resource_model=ResourceModel(),
+            feedback_model=FeedbackModel(),
+            generator=FakeGenerator(params={}),
+        )
+    except ValueError as e:
+        assert "submit tools must be declared" in str(e)
+    else:
+        raise AssertionError("expected submit tool in action space to fail")
+
+
+def test_task_ir_rejects_duplicate_tool_names_across_contract_sources() -> None:
+    try:
+        TaskIR(
+            name="fake",
+            version="0.1",
+            kernel=FakeKernel(),
+            action_space=ToolActionSpace(
+                contracts=(
+                    ToolActionContract(
+                        name="submit",
+                        kind="probe",
+                        description="Duplicate probe name.",
+                        action_space=ProductSpace(
+                            "probe_args",
+                            {"x": EnumSpace("x", ["a"])},
+                        ),
+                        return_schema={"type": "object"},
+                        cost=1,
+                    ),
+                )
+            ),
+            observation_model=FakeObservation(),
+            hypothesis_contract=ExactJSONContract(tool_name="submit"),
+            resource_model=ResourceModel(),
+            feedback_model=FeedbackModel(),
+            generator=FakeGenerator(params={}),
+        )
+    except ValueError as e:
+        assert "duplicate TaskIR tool names" in str(e)
+    else:
+        raise AssertionError("expected duplicate tool names to fail")
 
 
 def test_runtime_rejects_masked_action_before_kernel_dispatch() -> None:
@@ -203,7 +249,7 @@ def test_runtime_rejects_masked_action_before_kernel_dispatch() -> None:
             )
         ),
         observation_model=FakeObservation(),
-        hypothesis_contract=FakeHypothesis(),
+        hypothesis_contract=ExactJSONContract(),
         resource_model=ResourceModel(),
         feedback_model=FeedbackModel(),
         generator=FakeGenerator(params={}),
@@ -264,7 +310,7 @@ def test_runtime_wraps_action_canonicalization_exceptions() -> None:
             )
         ),
         observation_model=FakeObservation(),
-        hypothesis_contract=FakeHypothesis(),
+        hypothesis_contract=ExactJSONContract(),
         resource_model=ResourceModel(),
         feedback_model=FeedbackModel(),
         generator=FakeGenerator(params={}),

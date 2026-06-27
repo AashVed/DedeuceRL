@@ -9,12 +9,12 @@ from dedeucerl.utils.errors import ErrorCode
 
 def _mealy(seed: int = 0, budget: int = 10, **kwargs):
     entry = TASK_REGISTRY["mealy"]
+    params = {"n_states": 3, "trap": False}
+    params.update(kwargs)
     instance = entry.ir.generator.sample(
         seed=seed,
         budget=budget,
-        n_states=3,
-        trap=False,
-        **kwargs,
+        **params,
     )
     return entry.ir, instance
 
@@ -51,6 +51,37 @@ def test_runtime_probe_and_correct_submit() -> None:
     assert submit.output["ok"] is True
     assert runtime.done is True
     assert runtime.ok is True
+
+
+def test_mealy_submit_tool_is_generated_by_hypothesis_contract() -> None:
+    ir, instance = _mealy()
+    context = ir.action_context(
+        instance,
+        ir.kernel.initial_state(instance),
+        budget=instance.budget,
+        queries_used=0,
+        tool_calls=0,
+        done=False,
+    )
+
+    assert ir.action_space.names() == ["act"]
+    assert [contract.name for contract in ir.action_contracts(context)] == [
+        "act",
+        "submit_table",
+    ]
+
+
+def test_runtime_accepts_relabelled_mealy_submit() -> None:
+    ir, instance = _mealy(seed=5, n_states=4)
+    table = instance.private["table"]
+    relabeled = _relabel_table(table, {0: 0, 1: 2, 2: 1, 3: 3})
+    runtime = EpisodeRuntime(ir, instance, feedback=True)
+
+    submit = runtime.call_tool("submit_table", {"table_json": json.dumps(relabeled)})
+
+    assert submit.output["ok"] is True
+    assert submit.output["counterexample"] is None
+    assert runtime.done is True
 
 
 def test_runtime_incorrect_submit_can_return_counterexample() -> None:
@@ -102,3 +133,18 @@ def test_runtime_replay_detects_action_mismatch() -> None:
     result = runtime.replay([event])
     assert result.ok is False
     assert result.mismatch == "event 0: action mismatch"
+
+
+def _relabel_table(table: dict, mapping: dict[int, int]) -> dict:
+    inverse = {new: old for old, new in mapping.items()}
+    return {
+        "n": int(table["n"]),
+        "start": mapping[int(table["start"])],
+        "trans": {
+            str(new_state): {
+                symbol: [mapping[int(next_state)], output]
+                for symbol, (next_state, output) in table["trans"][str(old_state)].items()
+            }
+            for new_state, old_state in inverse.items()
+        },
+    }

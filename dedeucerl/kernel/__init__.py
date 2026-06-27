@@ -3,7 +3,6 @@
 from dedeucerl.kernel.mealy import ALPHABET, OUTPUTS, MealyKernel
 from dedeucerl.kernel.types import (
     KernelInputError,
-    KernelJudgment,
     KernelParam,
     KernelTransition,
     SystemKernel,
@@ -14,7 +13,6 @@ __all__ = [
     "ALPHABET",
     "OUTPUTS",
     "KernelInputError",
-    "KernelJudgment",
     "KernelParam",
     "KernelTransition",
     "MealyKernel",
