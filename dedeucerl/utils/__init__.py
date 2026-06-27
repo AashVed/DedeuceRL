@@ -23,7 +23,6 @@ from .errors import (
     error_unknown_tool,
     error_invalid_argument,
     error_malformed_hypothesis,
-    error_skin_not_found,
     error_split_not_found,
 )
 from .episodes import (
@@ -59,7 +58,6 @@ __all__ = [
     "error_unknown_tool",
     "error_invalid_argument",
     "error_malformed_hypothesis",
-    "error_skin_not_found",
     "error_split_not_found",
     # Episodes
     "parse_index_spec",

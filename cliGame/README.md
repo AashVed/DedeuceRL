@@ -1,6 +1,4 @@
-# DedeuceRL CLI Game
-
-Play any DedeuceRL skin interactively as a human "agent".
+# DedeuceRL Interactive Game
 
 Run:
 
@@ -8,22 +6,16 @@ Run:
 python -m cliGame
 ```
 
-How it works:
-- You pick a skin from `dedeucerl.skins.SKIN_REGISTRY`.
-- You enter a seed.
-- The game uses the same generation parameters as `HF_DATA/GENERATION.json` (test subset).
-- It prints the exact system/user prompt.
-- You enter tool calls and see tool JSON outputs.
+The game lists registered kernels, samples one task instance, prints the prompt
+and tools, then lets you call tools manually. It uses `EpisodeRuntime` directly,
+so behavior matches CLI eval and Verifiers surfaces.
 
-Input examples:
+Examples:
 
 ```text
 act A
 act {"symbol":"A"}
-submit_table {"n":4,"start":0,"trans":{...}}
-type_check true
-run_tests {"expr":"true","suite":"public"}
+submit_table {"n":2,"start":0,"trans":{...}}
 ```
 
-Commands:
-- `:help` `:tools` `:prompt` `:state` `:quit`
+Commands: `:help`, `:prompt`, `:state`, `:quit`.

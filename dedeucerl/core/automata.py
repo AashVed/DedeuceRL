@@ -1,6 +1,6 @@
 """Core automata algorithms for active system identification.
 
-This module provides domain-agnostic algorithms that skins can leverage:
+This module provides domain-agnostic algorithms that kernels can leverage:
 - Reachability analysis (BFS from start state)
 - Partition refinement for minimization/signature computation
 - Behavioral equivalence checking via product automaton

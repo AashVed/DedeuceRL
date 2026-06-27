@@ -1,11 +1,11 @@
 """Lightweight JSONSchema validation utilities.
 
-DedeuceRL uses JSONSchema-like dicts (see `DomainSpec.hypothesis_schema`) to
-optionally pre-validate hypothesis submissions.
+DedeuceRL uses JSONSchema-like dicts from kernel `ToolContract` objects and
+kernel-specific hypothesis contracts.
 
 We intentionally implement a small subset of JSONSchema to avoid adding a hard
 runtime dependency. The supported keywords are chosen to cover the schemas used
-in the built-in skins:
+by built-in kernels:
 
 - type
 - required

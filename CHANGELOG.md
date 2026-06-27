@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-06-27
+
+### Changed
+- Rebuilt DedeuceRL around Kernel, Runtime, and Surface layers.
+- Replaced skin-based extension with pure `SystemKernel` contracts, generic `EpisodeRuntime`, and surface compilers for datasets, prompts, tools, CLI eval, CLI game, and Verifiers.
+- Rebuilt Mealy as the reference `MealyKernel`.
+
+### Removed
+- Removed the old `HiddenSystemEnv`, `TaskGenerator`, `DomainSpec`, and built-in skin environment classes.
+- Removed Protocol, APIEnv, and ExprPolicy example skins until they can be remade on the new kernel architecture.
+
 ## [1.0.9] - 2026-04-22
 
 ### Changed

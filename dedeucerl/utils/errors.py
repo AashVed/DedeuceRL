@@ -5,14 +5,14 @@ Skins should prefer these codes for *framework-level* failures (budget, episode
 state, JSON parsing), while still being free to include domain-specific fields
 in tool payloads (e.g., HTTP-like status codes).
 
-Important: Tool methods should return a *standard envelope* that includes:
+Important: runtime tool calls return a *standard envelope* that includes:
 - budget_left
 - queries_used
 - trap_hit
 - error: {code, message, details?}
 
-The envelope itself is assembled in `HiddenSystemEnv` so errors stay consistent
-across all skins.
+The envelope itself is assembled in `EpisodeRuntime` so errors stay consistent
+across all surfaces.
 """
 
 from __future__ import annotations
@@ -47,7 +47,6 @@ class ErrorCode(str, Enum):
     INCORRECT_HYPOTHESIS = "E302"
 
     # System errors
-    SKIN_NOT_FOUND = "E401"
     SPLIT_NOT_FOUND = "E402"
     ADAPTER_ERROR = "E403"
 
@@ -154,14 +153,6 @@ def error_malformed_hypothesis(reason: str) -> DedeuceError:
         code=ErrorCode.MALFORMED_HYPOTHESIS,
         message=f"Malformed hypothesis: {reason}",
         details={"reason": reason},
-    )
-
-
-def error_skin_not_found(skin: str, available: list) -> DedeuceError:
-    return DedeuceError(
-        code=ErrorCode.SKIN_NOT_FOUND,
-        message=f"Skin '{skin}' not found. Available: {available}",
-        details={"skin": skin, "available": available},
     )
 
 

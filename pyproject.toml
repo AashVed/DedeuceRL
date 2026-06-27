@@ -1,9 +1,10 @@
 [project]
 name = "dedeucerl"
-version = "1.0.9"
+version = "2.0.0"
 description = "A modular framework for active system identification benchmarks"
 readme = {file = "README_PYPI.md", content-type = "text/markdown"}
-license = {file = "LICENSE"}
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [
     {name = "Vedansh"},
 ]
@@ -21,7 +22,6 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -68,7 +68,7 @@ dedeucerl-aggregate = "dedeucerl.cli.aggregate:main"
 dedeucerl-selfcheck = "dedeucerl.cli.selfcheck:main"
 
 [build-system]
-requires = ["setuptools>=64", "wheel"]
+requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]

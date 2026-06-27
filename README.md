@@ -1,668 +1,115 @@
 # DedeuceRL
 
-**Benchmark LLMs on Active System Identification** — probe hidden systems, form hypotheses, verify correctness.
+**Benchmark LLMs on active hidden-system identification**: probe an unknown
+system, infer its behavior, and submit a hypothesis.
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![CI](https://github.com/AashVed/DedeuceRL/actions/workflows/ci.yml/badge.svg)](https://github.com/AashVed/DedeuceRL/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/dedeucerl.svg)](https://pypi.org/project/dedeucerl/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Dataset](https://img.shields.io/badge/🤗_Dataset-DedeuceRL-yellow)](https://huggingface.co/datasets/comfortably-dumb/DedeuceRL)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18280315.svg)](https://doi.org/10.5281/zenodo.18280315)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-## Mealy Difficulty Scaling
+## Architecture
 
-![Mealy difficulty scaling](docs/assets/mealy-difficulty-scaling.svg)
+DedeuceRL is split into three layers:
 
-Benchmark score shown above: `success_rate` from `dedeucerl-aggregate` on the Mealy skin with feedback enabled, `32` held-out episodes per split, and `1` rollout per model/split.
+| Layer | Responsibility |
+|---|---|
+| `dedeucerl.kernel` | Pure hidden-system semantics. No LLMs, prompts, datasets, provider adapters, or Verifiers dependency. |
+| `dedeucerl.runtime` | Budget, turns, traps, tool execution, structured events, submissions, and replay. |
+| `dedeucerl.surface` | Prompt/tool-schema/dataset/Verifiers/CLI compilers. |
 
-| Model | 2 states (`b40`) | 3 states (`b40`) | 4 states (`b60`) |
-|-------|------------------:|------------------:|------------------:|
-| `openai:gpt-5-mini` | 78.1% | 28.1% | 9.4% |
-| `openrouter:google/gemini-3-flash-preview` (`--effort high`) | 43.8% | 3.1% | 0.0%* |
+The extension point is `SystemKernel`: implement a small pure kernel and optional
+sampler, then the engine provides the runtime and surfaces.
 
-\* The 4-state Gemini 3 Flash point is shown as `0.0%` for the README summary; no JSONL artifact is currently saved for that run.
-
-```bash
-pip install dedeucerl
-dedeucerl-generate --skin mealy --seeds 0-4 --budget 25 --n-states 3 -o tasks.json
-dedeucerl-eval --skin mealy --split tasks.json --model heuristic:none --out results.jsonl  # offline smoke baseline
-dedeucerl-eval-parallel --jobs 4 --out results.jsonl --skin mealy --split tasks.json --model heuristic:none  # merged output; offline smoke baseline
-```
-
----
-
-## Why DedeuceRL?
-
-Modern LLMs excel at knowledge retrieval and static reasoning, but struggle with **active exploration** — systematically probing unknown systems and deducing their structure from observations.
-
-DedeuceRL benchmarks this capability by requiring agents to:
-
-| Capability | What We Test |
-|------------|--------------|
-| **Systematic Exploration** | Strategically select probes to maximize information gain |
-| **Hypothesis Formation** | Build mental models of hidden system dynamics |
-| **Efficient Verification** | Minimize queries while ensuring correctness |
-| **Safety Awareness** | Avoid dangerous "trap" states that penalize reward |
-
-> **Research Context**: Active system identification builds on Angluin's L* algorithm for active automata learning, conformance testing (W-method), and query-based learning theory. See [Angluin (1987)](https://doi.org/10.1016/0890-5401(87)90052-6), [Vaandrager (2017)](https://doi.org/10.1007/978-3-319-57288-8_1).
-
----
-
-## Table of Contents
-
-- [Mealy Difficulty Scaling](#mealy-difficulty-scaling)
-- [Installation](#installation)
-- [Quickstart](#quickstart)
-- [Available Skins](#available-skins)
-- [Interactive Game](#interactive-game)
-- [Training with RL](#training-with-rl)
-- [CLI Reference](#cli-reference)
-- [Creating New Skins](#creating-new-skins)
-- [Metrics](#metrics)
-- [Citation](#citation)
-- [Contributing](CONTRIBUTING.md)
-
----
+`mealy` is the current reference kernel. Protocol/APIEnv/ExprPolicy will return
+as kernels after the architecture stabilizes.
 
 ## Installation
 
 ```bash
-pip install dedeucerl                   # Core
-pip install "dedeucerl[openai]"         # + OpenAI adapter
-pip install "dedeucerl[all]"            # All providers
-pip install "dedeucerl[gemini]"         # + Gemini adapter (google-genai; supported)
+pip install dedeucerl
+pip install "dedeucerl[openai]"
+pip install "dedeucerl[all]"
 ```
 
-Install Prime separately for RL training and `prime eval` workflows:
-
-```bash
-uv tool install prime
-prime lab setup
-```
-
-<details>
-<summary><strong>Development installation</strong></summary>
-
-```bash
-git clone https://github.com/AashVed/DedeuceRL.git
-cd DedeuceRL
-pip install -e ".[dev]"
-```
-
-</details>
-
-**Requirements:** Python 3.10+ · `verifiers>=0.1.12,<0.2` · `datasets>=3.0,<4.7.0`
-
----
+Requirements: Python 3.10+, `verifiers>=0.1.12,<0.2`, `datasets>=3.0,<4.7.0`.
 
 ## Quickstart
 
-### 1. Generate a task split
-
 ```bash
 dedeucerl-generate --skin mealy --seeds 0-9 --budget 25 --n-states 3 -o tasks.json
-```
-
-### 2. Evaluate a model
-
-```bash
-export OPENAI_API_KEY="sk-..."
-dedeucerl-eval --skin mealy --split tasks.json --model openai:gpt-4o --out results.jsonl
-```
-
-### 3. View results
-
-```bash
+dedeucerl-eval --skin mealy --split tasks.json --model heuristic:none --out results.jsonl
 dedeucerl-aggregate results.jsonl --format markdown
 ```
 
-**Output:**
-```
-| Model | Skin | Split Hash | Runs | Episodes | Success Rate | Trap Rate | Avg Queries | Avg Reward |
-|-------|------|------------|------|----------|--------------|-----------|-------------|------------|
-| openai:gpt-4o | mealy | abc123... | 10 | 10 | 40.0% | 20.0% | 18.2 | 0.318 |
-```
+`heuristic:none` is an offline smoke baseline and does not require API keys.
 
-
-## Available Skins
-
-DedeuceRL ships with multiple "skins" — domain-specific instantiations of the active identification paradigm:
-
-| Skin | Domain | What the Agent Must Identify |
-|------|--------|------------------------------|
-| **`mealy`** | Automata Theory | Hidden Mealy machine (state × input → output) |
-| **`protocol`** | API Testing | REST API state-dependent behavior |
-| **`apienv`** | SaaS Systems | API with methods, endpoints, variants, response schemas |
-| **`exprpolicy`** | DSL Debugging | Typed policy expression (compile + test + submit) |
-
-<details>
-<summary><strong>Skin details</strong></summary>
-
-### Mealy (Reference Skin)
-
-The agent identifies a hidden Mealy machine (finite-state transducer).
-
-- **Tools:** `act(symbol)` → probe, `submit_table(json)` → submit hypothesis
-- **Features:** Isomorphism checking, counterexample feedback, trap transitions
-- **Guarantees:** Generated machines are minimal and fully reachable
-
-### Protocol
-
-Reverse-engineer a stateful REST API.
-
-- **Tools:** `api_call(method, endpoint)` → probe, `submit_spec(json)` → submit
-- **Features:** State-dependent HTTP responses, behavioral equivalence
-
-### APIEnv
-
-Realistic SaaS API identification with variants and response schemas.
-
-- **Tools:** `api_call(method, endpoint, variant)` → probe, `submit_spec(json)` → submit
-- **Features:** Complex multi-dimensional action space
-
-### ExprPolicy
-
-Debug a typed policy DSL using compiler feedback and test suites.
-
-- **Tools:** `type_check(expr)`, `run_tests(expr, suite)`, `submit(expr)`
-- **Features:** Hidden tests, counterexample feedback, token constraints
-
-</details>
-
----
-
-## Interactive Game
-
-Play any skin as a human agent to understand the challenge:
-
-> Note: `cliGame` is a repo-only helper and is not installed via `pip install dedeucerl`.
-
-```bash
-python -m cliGame
-```
-
-```
-🎮 DedeuceRL Interactive Game
-Available skins: mealy, protocol, apienv, exprpolicy
-
-Select skin [1-4]: 1
-Enter seed (int): 42
-
-=== SYSTEM PROMPT ===
-You are identifying a hidden Mealy machine...
-
-=== YOUR TURN ===
-> act A
-{"output": 1, "budget_left": 24, "trap_hit": false}
-
-> act B
-{"output": 2, "budget_left": 23, "trap_hit": false}
-
-> submit_table {"n":3,"start":0,"trans":{...}}
-{"ok": true}
-```
-
-**Commands:** `:help` `:tools` `:prompt` `:state` `:quit`
-
----
-
-## Generating Tasks
-
-<details>
-<summary><strong>CLI Generator (recommended)</strong></summary>
-
-```bash
-# Show available parameters for a skin
-dedeucerl-generate --skin mealy --show-skin-params --seeds 0 --budget 25
-
-# Generate 100-episode Mealy test split
-dedeucerl-generate \
-  --skin mealy \
-  --seeds 0-99 \
-  --subset test \
-  --budget 100 \
-  --n-states 4 \
-  --no-trap \
-  -o dataset/mealy_test.json
-
-# Generate Protocol split
-dedeucerl-generate \
-  --skin protocol \
-  --seeds 0-99 \
-  --budget 120 \
-  --n-endpoints 5 \
-  --n-states 4 \
-  -o dataset/protocol_test.json
-```
-
-</details>
-
-<details>
-<summary><strong>Python API</strong></summary>
+## Programmatic Use
 
 ```python
-from dedeucerl.skins import MealyEnv
-from dedeucerl.core import TaskGenerator
+import json
 
-gen = TaskGenerator(MealyEnv)
-split = gen.generate_split(
-    seeds=list(range(100)),
-    budget=25,
-    subset_name="test",
-    n_states=5,
-    trap=True,
-)
-gen.save_split(split, "dataset/mealy_test.json")
+from dedeucerl.kernel import KERNEL_REGISTRY
+from dedeucerl.runtime import EpisodeRuntime
 
-# Build HuggingFace Dataset
-dataset = gen.build_dataset("dataset/mealy_test.json", "test", feedback=True)
+entry = KERNEL_REGISTRY["mealy"]
+instance = entry.sampler.sample(seed=0, budget=25, n_states=3, trap=True)
+runtime = EpisodeRuntime(entry.kernel, instance, feedback=True)
+
+print(runtime.call_tool("act", {"symbol": "A"}).output)
+print(runtime.call_tool("submit_table", {"table_json": json.dumps(instance.private["table"])}).output)
 ```
 
-</details>
+## Prime / Verifiers
 
-**Pre-built splits:** [🤗 comfortably-dumb/DedeuceRL](https://huggingface.co/datasets/comfortably-dumb/DedeuceRL)
-
----
-
-## Guide: Running Evaluations
-
-### Method 1: CLI (Recommended)
+Install Prime separately for RL workflows:
 
 ```bash
-# Basic evaluation
-dedeucerl-eval \
-  --skin mealy \
-  --split dataset/smoke/mealy_smoke.json \
-  --model openai:gpt-4o \
-  --out results.jsonl
-
-# With all options
-dedeucerl-eval \
-  --skin apienv \
-  --split dataset/smoke/apienv_smoke.json \
-  --model anthropic:claude-3-opus-20240229 \
-  --rollouts 3 \
-  --feedback \
-  --temperature 0.0 \
-  --verbose \
-  --out results/apienv_claude.jsonl
-```
-
-### Supported Model Specs
-
-| Provider | Format | Examples |
-|----------|--------|----------|
-| OpenAI | `openai:<model>` | `openai:gpt-4o`, `openai:gpt-4-turbo` |
-| Anthropic | `anthropic:<model>` | `anthropic:claude-3-opus-20240229` |
-| Gemini | `gemini:<model>` | `gemini:gemini-1.5-pro` |
-| OpenRouter | `openrouter:<model>` | `openrouter:meta-llama/llama-3-70b` |
-
-### Method 2: Python API
-
-```python
-from dedeucerl.skins import MealyEnv
-from dedeucerl.core import TaskGenerator, make_rubric
-from dedeucerl.adapters import get_adapter
-
-# Setup
-generator = TaskGenerator(MealyEnv)
-dataset = generator.build_dataset("dataset/smoke/mealy_smoke.json", "dev", feedback=True)
-rubric = make_rubric()
-env = MealyEnv(dataset=dataset, rubric=rubric, feedback=True, max_turns=30)
-
-# Get adapter
-adapter = get_adapter("openai:gpt-4o", temperature=0.0)
-
-# Run episode manually
-item = dataset[0]
-state = {"prompt": item["prompt"], "answer": item["answer"]}
-# ... custom evaluation loop
-```
-
-### Aggregating Results
-
-```bash
-# CSV (for spreadsheets)
-dedeucerl-aggregate results.jsonl --format csv > leaderboard.csv
-
-# Markdown (for README/reports)
-dedeucerl-aggregate results.jsonl --format markdown
-
-# JSON (for programmatic use)
-dedeucerl-aggregate results.jsonl --format json -o summary.json
-
-# Multiple files
-dedeucerl-aggregate results/*.jsonl --format markdown
-```
-
-Output columns include run-level metrics plus additive benchmark fields such as `eval_config_hash`, `max_complete_k`, `pass_at_1`, and `pass_at_3` (when enough rollouts are present).
-
----
-
-## Hugging Face Dataset
-
-Public task splits (MIT-licensed) are available at:
-- [🤗 comfortably-dumb/DedeuceRL](https://huggingface.co/datasets/comfortably-dumb/DedeuceRL)
-
----
-
-## Training with RL
-
-DedeuceRL environments inherit from [`verifiers.StatefulToolEnv`](https://github.com/PrimeIntellect-ai/verifiers) and are intended to be trained with Prime. `dedeucerl.vf_env` is the stable environment entrypoint for both hosted Prime training and self-managed `prime-rl` runs.
-
-### Prime Setup
-
-```bash
-# Install the Prime CLI and bootstrap a Lab workspace
 uv tool install prime
 prime lab setup
 ```
 
-If you want to run the open-source trainer on self-managed GPU infrastructure, add the `prime-rl` bootstrap as well:
-
-```bash
-prime lab setup --prime-rl
-```
-
-### Hosted Training
-
-Hosted Training uses the `prime rl run` entrypoint. Start from the checked-in hosted example:
-
-```bash
-prime rl run configs/rl/dedeucerl-mealy-hosted.toml
-```
-
-The hosted example targets a currently supported hosted-training model from the official Prime docs and uses `dedeucerl.vf_env` directly.
-
-### Self-Managed Training
-
-For self-managed GPU infrastructure, use `prime-rl` after bootstrapping the trainer:
-
-```bash
-uv run prime-rl configs/prime-rl/dedeucerl-mealy.toml
-```
-
-This keeps the same environment contract while following Prime's current self-managed trainer guidance. The checked-in config under `configs/prime-rl/` is intended as a starter template, not a claim that CPU-only local development is sufficient for full RL training.
-
-### Prime Evaluation
-
-Use Prime's eval runner when you want workspace-native evaluation outputs and Prime's TUI tooling:
-
-```bash
-prime eval run configs/eval/dedeucerl-mealy.toml
-```
-
-Use `dedeucerl-eval` when you specifically want DedeuceRL's benchmark JSONL output format, aggregation, sharding, and trace files.
-
-### Example Prime Configuration
-
-```toml
-model = "Qwen/Qwen3-4B-Instruct-2507"
-max_steps = 100
-batch_size = 64
-rollouts_per_example = 4
-
-[sampling]
-max_tokens = 768
-
-[[env]]
-id = "dedeucerl.vf_env"
-args = { skin = "mealy", seeds = [0, 1, 2, 3, 4], budget = 25, n_states = 4, subset = "train", feedback = true, reward_mode = "train_dense" }
-
-[wandb]
-project = "dedeucerl"
-name = "qwen3-4b-i-mealy"
-```
-
-### Custom Skins
-
-If you create your own skin, you can pass it by import path in the Prime config:
-
-```toml
-[[env]]
-id = "dedeucerl.vf_env"
-args = { skin = "my_pkg.my_skin:MySkinEnv", seeds = [0, 1, 2], budget = 25, subset = "train" }
-```
-
-### Alternative Frameworks
-
-DedeuceRL remains compatible with other Verifiers-based trainer stacks:
-- **[SkyRL](https://github.com/NovaSky-AI/SkyRL)** — [Verifiers integration](https://github.com/NovaSky-AI/SkyRL/tree/main/skyrl-train/integrations/verifiers)
-- **[Tinker](https://github.com/thinking-machines-lab/tinker-cookbook)** — [Verifiers recipes](https://github.com/thinking-machines-lab/tinker-cookbook/tree/main/tinker_cookbook/recipes/verifiers_rl)
-
-<details>
-<summary><strong>Custom reward functions</strong></summary>
+Use `dedeucerl.vf_env` as the stable Verifiers entrypoint:
 
 ```python
-from verifiers import Rubric, Parser
+import verifiers as vf
 
-def efficiency_reward(completion, answer, state, parser):
-    """Reward efficiency: fewer queries = higher reward."""
-    if not state.get("ok", False):
-        return 0.0
-    
-    queries = state.get("queries_used", 0)
-    budget = state.get("budget_init", 25)
-    efficiency = 1.0 - (queries / budget)
-    trap_penalty = 0.5 if state.get("trap_hit", False) else 0.0
-    
-    return efficiency - trap_penalty
-
-custom_rubric = Rubric(
-    funcs=[efficiency_reward],
-    weights=[1.0],
-    parser=Parser(extract_fn=lambda s: s),
+env = vf.load_environment(
+    "dedeucerl.vf_env",
+    skin="mealy",
+    seeds="0-9",
+    budget=25,
+    n_states=3,
+    feedback=True,
 )
-
-env = MealyEnv(dataset=dataset, rubric=custom_rubric, feedback=True, max_turns=30)
 ```
 
-</details>
+## Creating Kernels
 
-See [Prime's RL guide](https://docs.primeintellect.ai/guides/rl-training), [Verifiers training docs](https://docs.primeintellect.ai/verifiers/training), and [Prime config docs](https://docs.primeintellect.ai/prime-rl/configs) for the complete workflow.
+See [docs/KERNELS.md](docs/KERNELS.md). A kernel provides:
 
----
+- `initial_state(instance)`
+- `public_observation(instance)`
+- `tool_contracts(instance, state)`
+- `call(instance, state, tool_name, args)`
 
-## CLI Reference
+The runtime handles budget, errors, trap state, submissions, event logs, and
+replay. Surfaces compile the same contracts into prompts, provider tool schemas,
+datasets, Verifiers envs, and CLI workflows.
 
-### `dedeucerl-eval`
-
-Run evaluations on a skin.
+## Development
 
 ```bash
-dedeucerl-eval \
-  --skin mealy \
-  --split dataset/smoke/mealy_smoke.json \
-  --model openai:gpt-4o \
-  --rollouts 1 \
-  --out results.jsonl \
-  --feedback \
-  --temperature 0.0 \
-  --verbose
-```
-
-**Supported model specs:** `openai:gpt-4o` · `anthropic:claude-3-opus-20240229` · `gemini:gemini-1.5-pro` · `openrouter:<model>`
-
-**Optional effort (supported models only):** `--effort high|xhigh|...` (validated via a cheap probe; disable with `--no-effort-probe`)
-
-**Optional tracing:** `--trace-out traces.jsonl` writes per-turn JSONL events (model replies + tool results) for debugging.
-
-**Reward contract:** `dedeucerl-eval` reports the benchmark reward used for comparable evaluation runs. This is intentionally separate from training-oriented reward modes such as `reward_mode="train_dense"` used through Prime configs with `dedeucerl.vf_env`.
-
-**Episode selection + sharding:**
-
-```bash
-# Run only specific episodes
-dedeucerl-eval --skin mealy --split dataset/smoke/mealy_smoke.json --episodes 0-4,9
-
-# Run shard 1 of 4 (0-based shard index)
-dedeucerl-eval --skin mealy --split dataset/smoke/mealy_smoke.json --shard 1/4
-```
-
-**Resume runs (split-aware):**
-
-```bash
-dedeucerl-eval --skin mealy --split dataset/smoke/mealy_smoke.json --resume --out results.jsonl
-```
-
-Resume is safe across restarts because each result line includes both `split_hash` and `eval_config_hash`, so stochastic decoding settings are tracked as part of the evaluation identity.
-
-### `dedeucerl-eval-parallel`
-
-Run shard-parallel evals and merge results.
-
-```bash
-dedeucerl-eval-parallel \
-  --jobs 4 \
-  --out results.jsonl \
-  --skin mealy \
-  --split dataset/smoke/mealy_smoke.json \
-  --model openai:gpt-4o
-
-# With merged per-turn trace output (one JSONL stream for all shards)
-dedeucerl-eval-parallel \
-  --jobs 4 \
-  --out results.jsonl \
-  --trace-out traces.jsonl \
-  --skin mealy \
-  --split dataset/smoke/mealy_smoke.json \
-  --model openai:gpt-4o
-```
-
-This writes a single merged JSONL to `--out`. Per-shard part files are deleted by default (use `--keep-parts` to keep them). `--resume` reconstructs shard-local resume state from the merged output, so you do not need to preserve old shard part files.
-
-### `dedeucerl-aggregate`
-
-Aggregate results into a leaderboard.
-
-```bash
-dedeucerl-aggregate results.jsonl --format csv > leaderboard.csv
-dedeucerl-aggregate results.jsonl --format markdown
-dedeucerl-aggregate results.jsonl --format json -o results_summary.json
-```
-
-Rows are grouped by `model + skin + split_hash + eval_config_hash`. Aggregated output keeps run-level metrics and also reports additive per-episode benchmark fields such as `max_complete_k`, `pass_at_1`, and `pass_at_3` when rollout depth is sufficient.
-
-### `dedeucerl-selfcheck`
-
-Validate installation.
-
-```bash
-dedeucerl-selfcheck --verbose
-```
-
-## Creating New Skins
-
-For detailed implementation guide, see **[docs/SKINS.md](docs/SKINS.md)**.
-
-<details>
-<summary><strong>Quick reference</strong></summary>
-
-```python
-# dedeucerl/skins/myskin.py
-from dedeucerl.core.env import HiddenSystemEnv
-from dedeucerl.core.config import SkinConfig
-
-class MySkinEnv(HiddenSystemEnv):
-    config = SkinConfig(skin_name="myskin", default_budget=30)
-    
-    def _configure_from_metadata(self, meta): ...  # Parse ground truth
-    def _get_start_state(self): ...                # Initial state  
-    def _get_tools(self): ...                      # [probe, submit]
-    
-    @staticmethod
-    def generate_system_static(seed, **params): ...  # Deterministic generation
-    
-    @classmethod
-    def domain_spec(cls, **params): ...  # Tool/observation schemas
-```
-
-Register in `dedeucerl/skins/__init__.py` and run `dedeucerl-selfcheck --verbose`.
-
-</details>
-
----
-
-## Metrics
-
-| Metric | Description |
-|--------|-------------|
-| `success` | 1 if correct submission without trap hit, else 0 |
-| `queries_used` | Total probe + submit calls consumed |
-| `trap_hit` | 1 if dangerous state triggered |
-| `budget_remaining` | Queries left at episode end |
-| `reward` | `1.0 - 0.01 * queries_used` if successful, else 0 |
-
-<details>
-<summary><strong>Project structure</strong></summary>
-
-```
-DedeuceRL/
-├── dedeucerl/
-│   ├── core/       # HiddenSystemEnv, TaskGenerator, rubric
-│   ├── skins/      # MealyEnv, ProtocolEnv, APIEnv, ExprPolicyEnv
-│   ├── adapters/   # OpenAI, Anthropic, Gemini
-│   ├── cli/        # dedeucerl-eval, dedeucerl-generate, etc.
-│   └── utils/      # RNG utilities
-├── dataset/        # Pre-built evaluation splits (smoke/, leaderboard/, difficulty_scale/)
-└── tests/          # pytest suite
-```
-
-</details>
-
----
-
-## Running Tests
-
-```bash
-# Install dev dependencies
 pip install -e ".[dev]"
-
-# Run tests
-pytest tests/ -v
-
-# Run with coverage
-pytest tests/ --cov=dedeucerl
+ruff check .
+pytest -q
+python -m build
 ```
 
----
-
-## Environment Variables
-
-| Variable | Description |
-|----------|-------------|
-| `OPENAI_API_KEY` | API key for OpenAI models |
-| `OPENAI_BASE_URL` | Base URL override for `openai:*` (OpenAI-compatible endpoints) |
-| `OPENROUTER_API_KEY` | API key for OpenRouter (`openrouter:*`) |
-| `OPENROUTER_BASE_URL` | Base URL for OpenRouter (default: `https://openrouter.ai/api/v1`) |
-| `OPENROUTER_HTTP_REFERER` | Optional OpenRouter header `HTTP-Referer` |
-| `OPENROUTER_X_TITLE` | Optional OpenRouter header `X-Title` |
-| `ANTHROPIC_API_KEY` | API key for Anthropic models |
-| `GOOGLE_API_KEY` | API key for Google Gemini models |
-
----
-
-## License
-
-MIT License. See [LICENSE](LICENSE) for details.
-
----
+Before pushing, update the changelog, make the minimal appropriate version bump,
+and keep docs in sync with public behavior.
 
 ## Citation
 
-```bibtex
-@software{dedeucerl2026,
-  title = {DedeuceRL: A Modular Framework for Active System Identification Benchmarks},
-  author = {Vedansh},
-  year = {2026},
-  url = {https://github.com/AashVed/DedeuceRL}
-}
-```
-
-See [`CITATION.cff`](CITATION.cff) for full metadata.
-
----
-
-## Acknowledgments
-
-Built on: [verifiers](https://github.com/PrimeIntellect-ai/verifiers) · [Angluin's L* algorithm](https://doi.org/10.1016/0890-5401(87)90052-6) · DedeuceBench
+If you use DedeuceRL in research, cite the repository and the Zenodo DOI in
+`CITATION.cff`.
