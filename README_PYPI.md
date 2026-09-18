@@ -7,7 +7,7 @@ DedeuceRL is organized around four layers:
 - `dedeucerl.kernel`: pure hidden-system semantics
 - `dedeucerl.ir`: executable action spaces, hypothesis/equivalence contracts, task contracts, and renderers
 - `dedeucerl.runtime`: budget, traps, events, tool dispatch, and replay
-- `dedeucerl.surface`: prompts, provider tool schemas, datasets, CLIs, and Verifiers
+- `dedeucerl.surface`: prompts, provider tool schemas, datasets, CLIs, Verifiers, and MCP
 
 ## Install
 
@@ -27,6 +27,21 @@ dedeucerl-aggregate results.jsonl --format markdown
 
 `mealy` is the current reference kernel. Protocol/APIEnv/ExprPolicy are planned
 to return as kernels after the architecture stabilizes.
+
+## MCP Mode
+
+Expose one stateful episode to any MCP host over STDIO:
+
+```bash
+dedeucerl-mcp serve --task mealy --seed 42
+```
+
+The MCP initialization supplies the task instructions and tools. DedeuceRL
+automatically records the semantic tool trace, scores terminal episodes, and
+writes `result.json` plus `trace.jsonl` under `.dedeucerl/runs/<run-id>/`.
+Terminal responses include the score, while discovery-only processes create no
+artifacts. No provider adapter, manual run-spec tool, or manual scoring step is
+required.
 
 ## Prime / Verifiers
 

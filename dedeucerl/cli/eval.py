@@ -354,6 +354,8 @@ def _load_done(
     done: set[tuple[int, int]] = set()
     if not resume or not path.exists():
         return done
+    existing_split_hashes: set[str | None] = set()
+    matching_eval_hashes: set[str | None] = set()
     with open(path, "r", encoding="utf-8") as f:
         for line_no, line in enumerate(f, start=1):
             if not line.strip():
@@ -362,13 +364,44 @@ def _load_done(
                 row = json.loads(line)
             except json.JSONDecodeError as e:
                 raise SystemExit(f"Error: Malformed JSONL in {path} at line {line_no}: {e}") from e
+            row_split_hash = row.get("split_hash")
+            existing_split_hashes.add(row_split_hash)
             if (
                 row.get("model") == model
                 and row.get("skin") == kernel
-                and row.get("split_hash") == split_hash
-                and row.get("eval_config_hash") == eval_config_hash
+                and row_split_hash == split_hash
             ):
-                done.add((int(row.get("episode_idx")), int(row.get("rollout", 0))))
+                row_eval_hash = row.get("eval_config_hash")
+                matching_eval_hashes.add(row_eval_hash)
+                if row_eval_hash == eval_config_hash:
+                    done.add((int(row.get("episode_idx")), int(row.get("rollout", 0))))
+
+    if None in existing_split_hashes:
+        raise SystemExit(
+            f"Error: Cannot resume {path}: existing results are missing split_hash provenance."
+        )
+    if len(existing_split_hashes) > 1:
+        raise SystemExit(
+            f"Error: Cannot resume {path}: existing results contain multiple split_hash values."
+        )
+    if existing_split_hashes and split_hash not in existing_split_hashes:
+        existing = next(iter(existing_split_hashes))
+        raise SystemExit(
+            f"Error: Cannot resume {path}: split_hash mismatch "
+            f"(existing {existing}, requested {split_hash})."
+        )
+    if None in matching_eval_hashes:
+        raise SystemExit(
+            f"Error: Cannot resume {path}: matching results are missing "
+            "eval_config_hash provenance."
+        )
+    incompatible_eval_hashes = matching_eval_hashes - {eval_config_hash}
+    if incompatible_eval_hashes:
+        existing = ", ".join(sorted(incompatible_eval_hashes))
+        raise SystemExit(
+            f"Error: Cannot resume {path}: eval_config_hash mismatch "
+            f"(existing {existing}, requested {eval_config_hash})."
+        )
     return done
 
 

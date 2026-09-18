@@ -103,6 +103,7 @@ def load_environment(
         )
         eval_dataset = None
         if eval_split_path is not None or eval_seeds is not None:
+            eval_kernel_kwargs = {} if eval_split_path is not None else kernel_kwargs
             eval_dataset = _build_dataset(
                 kernel=kernel_name,
                 split_path=eval_split_path,
@@ -110,7 +111,7 @@ def load_environment(
                 seeds=eval_seeds,
                 budget=eval_budget,
                 feedback=feedback,
-                kernel_kwargs=kernel_kwargs,
+                kernel_kwargs=eval_kernel_kwargs,
             )
         return make_verifiers_env(
             dataset=dataset,

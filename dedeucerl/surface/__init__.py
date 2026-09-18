@@ -8,12 +8,15 @@ from dedeucerl.surface.dataset import (
     load_split,
     save_split,
 )
+from dedeucerl.surface.mcp import EpisodeArtifactPaths, MCPEpisodeServer
 from dedeucerl.surface.prompt import compile_prompt
 from dedeucerl.surface.tools import compile_tool_schema, compile_tool_schemas
 from dedeucerl.surface.vf import KernelToolEnv, make_verifiers_env
 
 __all__ = [
     "KernelToolEnv",
+    "EpisodeArtifactPaths",
+    "MCPEpisodeServer",
     "build_dataset_from_split",
     "compile_prompt",
     "compile_tool_schema",

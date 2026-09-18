@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-09-18
+
+### Added
+- Added `dedeucerl-mcp serve`, a provider-neutral, one-episode MCP STDIO server built on the stable MCP Python SDK v2 API.
+- Added automatic per-call JSONL tracing and automatic result scoring/persistence on terminal state or client disconnect.
+- Added MCP instructions and structured input/output schemas compiled directly from each task's `TaskIR` contracts.
+- Added final score, reward, and termination reason to terminal MCP tool responses.
+
+### Changed
+- Extracted pure identification scoring so non-Verifiers surfaces use the same benchmark reward semantics.
+- Raised the Verifiers floor to 0.1.14 for a dependency set compatible with MCP SDK v2.
+- Deferred MCP artifact creation until the first semantic tool call, preventing discovery-only server processes from leaving empty runs.
+
+### Fixed
+- Preserved TaskIR types, enums, and descriptions in Verifiers tool schemas.
+- Derived Verifiers turn limits from the largest train/evaluation task budget instead of capping runs at 64 turns.
+- Allowed generated training data to be paired with an independently loaded evaluation split.
+- Made `--resume` reject result files with missing or incompatible split/evaluation provenance.
+- Kept MCP traces terminal after `episode_end` and rejected aliased or concurrently claimed artifact paths.
+- Reported correct terminal submissions after an earlier nonterminal trap as `solved_with_trap`.
+
 ## [1.0.14] - 2026-06-28
 
 ### Fixed
