@@ -7,6 +7,19 @@ from typing import Any, Dict
 import verifiers as vf
 
 
+def score_identification(state: Dict[str, Any]) -> float:
+    """Score a completed identification episode without a Verifiers runtime."""
+    ok = bool(state.get("ok", False))
+    trap = bool(state.get("trap_hit", False))
+    queries = int(state.get("queries_used", 0))
+
+    if not ok or trap:
+        return 0.0
+
+    efficiency_penalty = min(0.5, 0.01 * queries)
+    return float(max(0.0, 1.0 - efficiency_penalty))
+
+
 def reward_identification(
     completion: Any,
     answer: str,
@@ -20,17 +33,7 @@ def reward_identification(
         - 1.0 for success without trap (minus small efficiency penalty)
         - 0.0 for failure or trap
     """
-    ok = bool(state.get("ok", False))
-    trap = bool(state.get("trap_hit", False))
-    queries = int(state.get("queries_used", 0))
-
-    if not ok or trap:
-        return 0.0
-
-    # Base reward with efficiency penalty
-    base = 1.0
-    efficiency_penalty = min(0.5, 0.01 * queries)
-    return float(max(0.0, base - efficiency_penalty))
+    return score_identification(state)
 
 
 def reward_train_dense(

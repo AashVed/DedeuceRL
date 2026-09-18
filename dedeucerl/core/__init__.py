@@ -29,6 +29,7 @@ from .rubric import (
     metric_trap,
     reward_identification,
     reward_train_dense,
+    score_identification,
 )
 from .transducers import (
     normalize_transducer_table,
@@ -61,6 +62,7 @@ __all__ = [
     "parse_transducer_transitions",
     "reward_identification",
     "reward_train_dense",
+    "score_identification",
     "transducer_counterexample",
     "transducer_table_schema",
     "transducer_tables_are_isomorphic",

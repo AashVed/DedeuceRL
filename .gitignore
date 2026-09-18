@@ -64,6 +64,7 @@ htmlcov/
 *.local
 
 # Results/outputs (generated during runs)
+.dedeucerl/
 results*.jsonl
 *.jsonl
 *.jsonl.bak

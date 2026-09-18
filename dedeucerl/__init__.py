@@ -10,7 +10,7 @@ except PackageNotFoundError:  # pragma: no cover
     # Source checkout without an installed distribution.
     __version__ = "0.0.0"
 
-from dedeucerl.core.rubric import make_rubric, reward_identification
+from dedeucerl.core.rubric import make_rubric, reward_identification, score_identification
 from dedeucerl.ir import (
     TASK_REGISTRY,
     ActionContext,
@@ -78,4 +78,5 @@ __all__ = [
     "get_task_entry",
     "make_rubric",
     "reward_identification",
+    "score_identification",
 ]

@@ -17,7 +17,7 @@ DedeuceRL is split into four layers:
 | `dedeucerl.kernel` | Pure hidden-system semantics. No LLMs, prompts, datasets, provider adapters, or Verifiers dependency. |
 | `dedeucerl.ir` | Executable task contracts: action spaces, hypothesis/equivalence checks, observations, resources, feedback, generators, and renderers. |
 | `dedeucerl.runtime` | Budget, turns, traps, tool execution, structured events, submissions, and replay. |
-| `dedeucerl.surface` | Prompt/tool-schema/dataset/Verifiers/CLI compilers. |
+| `dedeucerl.surface` | Prompt/tool-schema/dataset/Verifiers/MCP/CLI compilers. |
 
 The extension point is `TaskIR`: pair a small pure `SystemKernel` with executable
 contracts, then the engine provides the runtime and surfaces.
@@ -33,7 +33,8 @@ pip install "dedeucerl[openai]"
 pip install "dedeucerl[all]"
 ```
 
-Requirements: Python 3.10+, `verifiers>=0.1.12,<0.2`, `datasets>=3.0,<4.7.0`.
+Requirements: Python 3.10+, `verifiers>=0.1.14,<0.2`, `datasets>=3.0,<4.7.0`,
+and `mcp>=2.1.1,<3`.
 
 ## Quickstart
 
@@ -44,6 +45,40 @@ dedeucerl-aggregate results.jsonl --format markdown
 ```
 
 `heuristic:none` is an offline smoke baseline and does not require API keys.
+
+## MCP Mode
+
+Run one benchmark episode as a provider-neutral MCP STDIO server:
+
+```bash
+dedeucerl-mcp serve --task mealy --seed 42
+```
+
+Configure any MCP host to launch that command. For example, in hosts that use a
+JSON server map:
+
+```json
+{
+  "mcpServers": {
+    "dedeucerl": {
+      "command": "dedeucerl-mcp",
+      "args": ["serve", "--task", "mealy", "--seed", "42"]
+    }
+  }
+}
+```
+
+The host receives the episode instructions and current tool schemas during MCP
+discovery. It does not need a pasted run specification, a scoring tool, or a
+provider-specific adapter. Each server process owns exactly one stateful episode.
+Terminal tool calls return the final score/reward and are persisted immediately;
+an unfinished episode is finalized when the host disconnects. Discovery-only
+server processes create no artifacts.
+
+By default, artifacts are written to
+`.dedeucerl/runs/<run-id>/{result.json,trace.jsonl}`. Use `--out`, `--trace-out`,
+or `--runs-dir` to change paths, and `--no-persist` for ephemeral sessions. See
+[docs/MCP.md](docs/MCP.md) for the lifecycle and complete options.
 
 ## Programmatic Use
 

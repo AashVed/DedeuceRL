@@ -87,6 +87,81 @@ def test_vf_env_loads_with_seeds() -> None:
     assert state["queries_used"] == 1
 
 
+def test_vf_env_preserves_taskir_tool_schemas() -> None:
+    env = vf.load_environment(
+        "dedeucerl.vf_env",
+        skin="mealy",
+        seeds=[0],
+        budget=5,
+        n_states=2,
+        feedback=False,
+    )
+    entry = TASK_REGISTRY["mealy"]
+    instance = entry.ir.generator.sample(seed=0, budget=5, n_states=2)
+    context = entry.ir.action_context(
+        instance,
+        entry.ir.kernel.initial_state(instance),
+        budget=instance.budget,
+        queries_used=0,
+        tool_calls=0,
+        done=False,
+    )
+    expected = {
+        contract.name: contract.to_tool_schema() for contract in entry.ir.action_contracts(context)
+    }
+    actual = {tool.name: tool.model_dump(exclude_none=True) for tool in env.tool_defs}
+
+    assert actual == expected
+
+
+def test_vf_env_derives_max_turns_from_all_task_budgets() -> None:
+    env = vf.load_environment(
+        "dedeucerl.vf_env",
+        skin="mealy",
+        seeds=[0],
+        budget=100,
+        n_states=2,
+        feedback=False,
+    )
+    assert env.max_turns == 102
+
+    feedback_env = vf.load_environment(
+        "dedeucerl.vf_env",
+        skin="mealy",
+        seeds=[0],
+        budget=100,
+        n_states=2,
+        feedback=True,
+    )
+    assert feedback_env.max_turns == 110
+
+    unlimited_env = vf.load_environment(
+        "dedeucerl.vf_env",
+        skin="mealy",
+        seeds=[0],
+        budget=100,
+        n_states=2,
+        max_turns=0,
+    )
+    assert unlimited_env.max_turns == 0
+
+
+def test_vf_env_accepts_generated_training_with_split_evaluation() -> None:
+    env = vf.load_environment(
+        "dedeucerl.vf_env",
+        skin="mealy",
+        seeds=[0],
+        budget=5,
+        n_states=2,
+        eval_split_path=str(REPO_ROOT / "dataset" / "smoke" / "mealy_smoke.json"),
+        eval_subset="dev",
+    )
+
+    assert len(env.dataset) == 1
+    assert len(env.eval_dataset) == 5
+    assert env.max_turns == 62
+
+
 def test_vf_tool_builder_includes_optional_properties() -> None:
     env = object.__new__(KernelToolEnv)
     calls: list[tuple[str, dict]] = []
