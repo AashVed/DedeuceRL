@@ -6,7 +6,7 @@ from typing import Any, Mapping
 from dedeucerl.ir import (
     EnumSpace,
     ExactJSONContract,
-    FeedbackModel,
+    HypothesisObjective,
     MaskedSpace,
     ProductSpace,
     ResourceModel,
@@ -68,7 +68,7 @@ class FakeGenerator:
         )
 
 
-def _fake_ir(*, reveal_counterexample: bool = True) -> TaskIR:
+def _fake_ir() -> TaskIR:
     return TaskIR(
         name="fake",
         version="0.1",
@@ -89,18 +89,44 @@ def _fake_ir(*, reveal_counterexample: bool = True) -> TaskIR:
             )
         ),
         observation_model=FakeObservation(),
-        hypothesis_contract=ExactJSONContract(
-            tool_name="submit",
-            description="Submit a boolean answer.",
-            action_field="answer",
-            expected_private_key="answer",
-            schema={"type": "boolean"},
-            cost=2,
+        objective=HypothesisObjective(
+            ExactJSONContract(
+                tool_name="submit",
+                description="Submit a boolean answer.",
+                action_field="answer",
+                expected_private_key="answer",
+                schema={"type": "boolean"},
+                cost=2,
+            )
         ),
         resource_model=ResourceModel(unknown_tool_cost=3),
-        feedback_model=FeedbackModel(reveal_counterexample=reveal_counterexample),
         generator=FakeGenerator(params={}),
     )
+
+
+def test_identification_feedback_hooks_run_only_for_enabled_failed_attempts(monkeypatch) -> None:
+    calls = []
+
+    def counterexample(self, instance, hypothesis):
+        calls.append("counterexample")
+        return {"expected": True}
+
+    def distance(self, instance, hypothesis):
+        calls.append("distance")
+        return 1.0
+
+    monkeypatch.setattr(ExactJSONContract, "counterexample", counterexample)
+    monkeypatch.setattr(ExactJSONContract, "distance", distance)
+    ir = _fake_ir()
+    for feedback in (False, True):
+        for answer in (False, True):
+            calls.clear()
+            runtime = EpisodeRuntime(ir, ir.generator.sample(seed=1, budget=5), feedback=feedback)
+            result = runtime.call_tool("submit", {"answer": answer})
+            disclose = feedback and not answer
+            assert calls == (["counterexample", "distance"] if disclose else [])
+            assert ("distance" in result.output) == disclose
+            assert result.output["counterexample"] == ({"expected": True} if disclose else None)
 
 
 def test_task_ir_contracts_and_public_observation() -> None:
@@ -124,7 +150,7 @@ def test_task_ir_contracts_and_public_observation() -> None:
 
 
 def test_runtime_uses_ir_resources_and_feedback() -> None:
-    ir = _fake_ir(reveal_counterexample=False)
+    ir = _fake_ir()
     instance = ir.generator.sample(seed=1, budget=5)
     runtime = EpisodeRuntime(ir, instance, feedback=True)
 
@@ -139,7 +165,7 @@ def test_runtime_uses_ir_resources_and_feedback() -> None:
     assert runtime.budget == 0
 
 
-def test_task_ir_rejects_submit_tools_outside_hypothesis_contract() -> None:
+def test_task_ir_rejects_submit_tools_outside_objective() -> None:
     try:
         TaskIR(
             name="fake",
@@ -161,9 +187,8 @@ def test_task_ir_rejects_submit_tools_outside_hypothesis_contract() -> None:
                 )
             ),
             observation_model=FakeObservation(),
-            hypothesis_contract=ExactJSONContract(tool_name="submit"),
+            objective=HypothesisObjective(ExactJSONContract(tool_name="submit")),
             resource_model=ResourceModel(),
-            feedback_model=FeedbackModel(),
             generator=FakeGenerator(params={}),
         )
     except ValueError as e:
@@ -194,9 +219,8 @@ def test_task_ir_rejects_duplicate_tool_names_across_contract_sources() -> None:
                 )
             ),
             observation_model=FakeObservation(),
-            hypothesis_contract=ExactJSONContract(tool_name="submit"),
+            objective=HypothesisObjective(ExactJSONContract(tool_name="submit")),
             resource_model=ResourceModel(),
-            feedback_model=FeedbackModel(),
             generator=FakeGenerator(params={}),
         )
     except ValueError as e:
@@ -249,9 +273,8 @@ def test_runtime_rejects_masked_action_before_kernel_dispatch() -> None:
             )
         ),
         observation_model=FakeObservation(),
-        hypothesis_contract=ExactJSONContract(),
+        objective=HypothesisObjective(ExactJSONContract()),
         resource_model=ResourceModel(),
-        feedback_model=FeedbackModel(),
         generator=FakeGenerator(params={}),
     )
     instance = ir.generator.sample(seed=1, budget=2)
@@ -312,9 +335,8 @@ def test_runtime_wraps_action_canonicalization_exceptions() -> None:
             )
         ),
         observation_model=FakeObservation(),
-        hypothesis_contract=ExactJSONContract(),
+        objective=HypothesisObjective(ExactJSONContract()),
         resource_model=ResourceModel(),
-        feedback_model=FeedbackModel(),
         generator=FakeGenerator(params={}),
     )
     instance = ir.generator.sample(seed=1, budget=2)

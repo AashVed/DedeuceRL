@@ -23,6 +23,7 @@ from __future__ import annotations
 
 from collections import deque, defaultdict, Counter
 from dataclasses import dataclass, field
+from random import Random
 from typing import (
     Any,
     Callable,
@@ -681,61 +682,87 @@ def verify_trap_free_path_exists(
     return target_states.issubset(visited)
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# Backbone Generation (Ensuring Reachability)
-# ═══════════════════════════════════════════════════════════════════════════════
-
-
-def create_reachability_backbone(
+def is_strongly_connected(
     n_states: int,
     actions: List[Any],
-    rng: Any,
-) -> Dict[int, Any]:
-    """Create a backbone ensuring all states are reachable.
+    get_next_state: Callable[[int, Any], int],
+    blocked: Optional[Set[Tuple[int, Any]]] = None,
+) -> bool:
+    """Whether every state can reach every other, excluding blocked edges.
 
-    Returns a mapping from state to the action that should transition
-    to the next state in a chain: 0 -> 1 -> 2 -> ... -> n-1 -> 0.
-
-    This is used during generation to guarantee reachability before
-    filling in the remaining transitions randomly.
-
-    Args:
-        n_states: Number of states.
-        actions: List of valid actions.
-        rng: Random number generator.
-
-    Returns:
-        Dict mapping state -> action for the backbone transitions.
+    Two traversals from state zero, forward and backward, suffice. This checks
+    recoverability without requiring any particular action or route to provide it.
     """
-    backbone: Dict[int, Any] = {}
-    backbone_action = actions[0]  # Use first action for backbone
-
+    if n_states < 1:
+        return False
+    forward: List[List[int]] = [[] for _ in range(n_states)]
+    reverse: List[List[int]] = [[] for _ in range(n_states)]
     for state in range(n_states):
-        backbone[state] = backbone_action
+        for action in actions:
+            if blocked and (state, action) in blocked:
+                continue
+            target = get_next_state(state, action)
+            forward[state].append(target)
+            reverse[target].append(state)
+    for graph in (forward, reverse):
+        seen = {0}
+        pending = [0]
+        for state in pending:
+            for target in graph[state]:
+                if target not in seen:
+                    seen.add(target)
+                    pending.append(target)
+        if len(seen) != n_states:
+            return False
+    return True
 
-    return backbone
+
+def _partition_counts(slots: int, groups: int) -> List[List[int]]:
+    """Stirling numbers S(i, j): partitions of i slots into j nonempty blocks."""
+    counts = [[0] * (groups + 1) for _ in range(slots + 1)]
+    counts[0][0] = 1
+    for i in range(1, slots + 1):
+        for j in range(1, min(i, groups) + 1):
+            counts[i][j] = j * counts[i - 1][j] + counts[i - 1][j - 1]
+    return counts
 
 
-def apply_backbone(
-    n_states: int,
-    backbone: Dict[int, Any],
-    transitions: Dict[int, Dict[Any, Tuple[int, Any]]],
-    outputs: List[Any],
-    rng: Any,
-) -> None:
-    """Apply backbone transitions to ensure reachability.
+def _sample_surjection(counts: List[List[int]], groups: int, rng: Random) -> List[int]:
+    """Uniformly map slots onto labelled destinations, each occurring at least once."""
+    labels = list(range(groups))
+    rng.shuffle(labels)
+    targets = [0] * (len(counts) - 1)
+    for i in range(len(targets), 0, -1):
+        # Either the last slot starts its own block, or joins one of j blocks.
+        if rng.randrange(counts[i][groups]) < counts[i - 1][groups - 1]:
+            groups -= 1
+            targets[i - 1] = labels[groups]
+        else:
+            targets[i - 1] = labels[rng.randrange(groups)]
+    return targets
 
-    Modifies transitions in-place to include backbone edges.
 
-    Args:
-        n_states: Number of states.
-        backbone: Mapping from state -> backbone action.
-        transitions: Transition dict to modify (state -> action -> (next, out)).
-        outputs: List of valid outputs.
-        rng: Random number generator.
+def sample_strongly_connected_transitions(
+    n_states: int, actions: List[Any], rng: Random
+) -> Dict[int, Dict[Any, int]]:
+    """Sample uniformly over complete strongly connected labelled transition maps.
+
+    Positive indegree is necessary for strong connectivity. Sampling onto maps
+    first avoids the vanishing acceptance of unrestricted independent targets.
+    SCC rejection imposes no planted cycle, permutation action, or spanning tree.
+    All valid labelled maps have equal probability, conditional on returning.
+
+    Exact partition counts use O(n_states**2 * len(actions)) integer entries;
+    integer sizes also grow. This is intended for small/medium finite-state
+    benchmarks (measured through 256 states), not very large graphs. Counts are
+    local to this call rather than retained in a global cache.
     """
-    for state in range(n_states):
-        action = backbone[state]
-        next_state = (state + 1) % n_states
-        output = rng.choice(outputs)
-        transitions[state][action] = (next_state, output)
+    if n_states < 1 or not actions or len(set(actions)) != len(actions):
+        raise ValueError("Require n_states >= 1 and distinct, nonempty actions")
+    counts = _partition_counts(n_states * len(actions), n_states)
+    for _ in range(10_000):
+        targets = iter(_sample_surjection(counts, n_states, rng))
+        transitions = {s: {a: next(targets) for a in actions} for s in range(n_states)}
+        if is_strongly_connected(n_states, actions, lambda s, a: transitions[s][a]):
+            return transitions
+    raise RuntimeError(f"Failed to sample strongly connected transitions for n_states={n_states}")

@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from dedeucerl.ir.mealy import build_mealy_ir
+from dedeucerl.ir.palindrome import build_palindrome_ir
 from dedeucerl.ir.types import TaskIR
 
 
@@ -18,6 +19,7 @@ MEALY_IR = build_mealy_ir()
 
 TASK_REGISTRY: dict[str, TaskEntry] = {
     "mealy": TaskEntry(name="mealy", ir=MEALY_IR),
+    "mealy_palindrome": TaskEntry(name="mealy_palindrome", ir=build_palindrome_ir()),
 }
 
 

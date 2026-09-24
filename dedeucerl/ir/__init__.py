@@ -21,12 +21,25 @@ from dedeucerl.ir.hypotheses import (
     HypothesisContract,
     HypothesisInputError,
     HypothesisJudgment,
+    HypothesisObjective,
     HypothesisParseResult,
     HypothesisValidationResult,
 )
+from dedeucerl.ir.objectives import (
+    Evaluation,
+    EvaluationContext,
+    Execution,
+    ExecutionStep,
+    FeedbackSpec,
+    Objective,
+    ObjectiveContract,
+    ObjectiveInputError,
+    ObjectiveResult,
+    ToolCall,
+)
 from dedeucerl.ir.registry import TASK_REGISTRY, TaskEntry, get_task_entry
+from dedeucerl.ir.typed_space import TypedSpace
 from dedeucerl.ir.types import (
-    FeedbackModel,
     ObservationModel,
     Renderer,
     ResourceModel,
@@ -40,7 +53,6 @@ __all__ = [
     "ActionValidationError",
     "EnumSpace",
     "ExactJSONContract",
-    "FeedbackModel",
     "FiniteTransducerIsomorphismContract",
     "HypothesisContract",
     "HypothesisInputError",
@@ -64,4 +76,16 @@ __all__ = [
     "ToolKind",
     "UnionSpace",
     "get_task_entry",
+    "Evaluation",
+    "EvaluationContext",
+    "Execution",
+    "ExecutionStep",
+    "FeedbackSpec",
+    "Objective",
+    "ObjectiveContract",
+    "ObjectiveInputError",
+    "ObjectiveResult",
+    "ToolCall",
+    "HypothesisObjective",
+    "TypedSpace",
 ]

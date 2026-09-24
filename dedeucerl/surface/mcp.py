@@ -37,6 +37,7 @@ _ERROR_OUTPUT_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
         "error": {"type": "object"},
+        "done": {"type": "boolean"},
         "budget_left": {"type": "integer"},
         "queries_used": {"type": "integer"},
         "trap_hit": {"type": "boolean"},
@@ -102,7 +103,7 @@ class MCPEpisodeServer:
             "DedeuceRL",
             version=__version__,
             title=f"DedeuceRL: {ir.name}",
-            description="One stateful hidden-system identification benchmark episode.",
+            description="One stateful hidden-system benchmark episode.",
             instructions=self.instructions,
             on_list_tools=self._list_tools,
             on_call_tool=self._call_tool,
@@ -147,6 +148,7 @@ class MCPEpisodeServer:
     def _post_terminal_result(self, tool_name: str) -> CallToolResult:
         output: dict[str, Any] = {
             "error": error_episode_finished().to_dict(),
+            "done": True,
             "budget_left": self.runtime.budget,
             "queries_used": self.runtime.queries_used,
             "trap_hit": self.runtime.trap_hit,
@@ -192,7 +194,7 @@ class MCPEpisodeServer:
             "schema_version": 1,
             "run_id": self.artifacts.run_id,
             "task": self.ir.name,
-            "task_version": self.ir.version,
+            "task_version": self.instance.kernel_version,
             "episode_id": self.instance.id,
             "seed": self.instance.seed,
             "params": dict(self.instance.params),
@@ -207,6 +209,7 @@ class MCPEpisodeServer:
             "budget_remaining": self.runtime.budget,
             "queries_used": self.runtime.queries_used,
             "tool_calls": self.runtime.tool_calls,
+            "evaluation_steps": self.runtime.evaluation_steps,
             "started_at": self.started_at,
             "finished_at": self.finished_at,
             "result_path": (
@@ -245,7 +248,7 @@ class MCPEpisodeServer:
                         "schema_version": 1,
                         "run_id": self.artifacts.run_id,
                         "task": self.ir.name,
-                        "task_version": self.ir.version,
+                        "task_version": self.instance.kernel_version,
                         "episode_id": self.instance.id,
                         "seed": self.instance.seed,
                         "params": dict(self.instance.params),
@@ -276,9 +279,11 @@ def _compile_mcp_tool(contract: ToolActionContract[Any]) -> Tool:
         "properties": _TERMINAL_OUTPUT_PROPERTIES,
         "anyOf": [dict(contract.return_schema), _ERROR_OUTPUT_SCHEMA],
     }
+    if "$defs" in contract.return_schema:
+        output_schema["$defs"] = contract.return_schema["$defs"]
     return Tool(
         name=contract.name,
-        description=f"{contract.description} Cost: {contract.cost} budget unit(s).",
+        description=f"{contract.description} Base call cost: {contract.cost} budget unit(s).",
         inputSchema=schema["parameters"],
         outputSchema=output_schema,
         annotations=ToolAnnotations(
@@ -349,6 +354,8 @@ def _slug(value: str) -> str:
 def _termination_reason(runtime: EpisodeRuntime, ir: TaskIR, *, fallback: str | None) -> str:
     if runtime.ok:
         return "solved"
+    if runtime.terminal_failure:
+        return "objective_failed"
     if runtime.done and runtime.trap_hit:
         if ir.resource_model.trap_ends_episode:
             return "trapped"

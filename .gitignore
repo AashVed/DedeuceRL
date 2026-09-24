@@ -8,6 +8,11 @@ gen_examples.py
 tasks_eg.md
 IDEAS.md
 workspace_context/
+docs/reviews/
+research/*_AUDIT.md
+research/*_LEDGER.md
+research/results/
+research/**/artifacts/
 
 # Virtual environments
 .venv/

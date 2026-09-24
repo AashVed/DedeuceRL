@@ -5,10 +5,9 @@ from __future__ import annotations
 from typing import Any, Mapping
 
 from dedeucerl.core.automata import (
-    generate_random_traps,
-    is_fully_reachable,
     is_minimal,
-    verify_trap_free_path_exists,
+    is_strongly_connected,
+    sample_strongly_connected_transitions,
 )
 from dedeucerl.core.transducers import parse_transducer_transitions
 from dedeucerl.kernel.types import KernelInputError, KernelTransition, TaskInstance
@@ -33,10 +32,10 @@ class MealyKernel:
     def call(
         self,
         instance: TaskInstance,
-        state: Any,
+        state: int,
         tool_name: str,
         action: Any,
-    ) -> KernelTransition:
+    ) -> KernelTransition[int]:
         if tool_name != "act":
             raise KeyError(tool_name)
         return self._act(instance, int(state), action)
@@ -46,7 +45,7 @@ class MealyKernel:
         instance: TaskInstance,
         state: int,
         action: Any,
-    ) -> KernelTransition:
+    ) -> KernelTransition[int]:
         if not isinstance(action, Mapping):
             raise KernelInputError(error_invalid_symbol(str(action), ALPHABET))
         symbol = str(action.get("symbol", ""))
@@ -69,50 +68,34 @@ def generate_mealy_system(seed: int, n_states: int = 3, trap: bool = True) -> di
     if n < 1:
         raise ValueError("n_states must be >= 1")
 
-    def gen_once() -> dict[int, dict[str, tuple[int, int]]]:
-        trans: dict[int, dict[str, tuple[int, int]]] = {s: {} for s in range(n)}
-        for s in range(n):
-            trans[s]["A"] = ((s + 1) % n, rng.choice(OUTPUTS))
-        for s in range(n):
-            for a in [x for x in ALPHABET if x != "A"]:
-                trans[s][a] = (rng.randrange(n), rng.choice(OUTPUTS))
-        return trans
-
     for _ in range(10_000):
-        trans = gen_once()
-        if not is_fully_reachable(n, 0, ALPHABET, lambda s, a: trans[s][a][0]):
-            continue
-        if not is_minimal(n, ALPHABET, lambda s, a: trans[s][a]):
-            continue
-        break
+        targets = sample_strongly_connected_transitions(n, ALPHABET, rng)
+        trans = {s: {a: (targets[s][a], rng.choice(OUTPUTS)) for a in ALPHABET} for s in range(n)}
+        if is_minimal(n, ALPHABET, lambda s, a: trans[s][a]):
+            break
     else:
-        raise RuntimeError(f"Failed to generate reachable minimal Mealy machine for n_states={n}")
+        raise RuntimeError(
+            f"Failed to generate strongly connected minimal Mealy machine for n_states={n}"
+        )
 
     trap_pairs: list[tuple[int, str]] = []
     if trap:
-        target_count = max(1, n // 3)
-        seen: set[tuple[int, str]] = set()
-        attempts = 0
-        while len(trap_pairs) < target_count and attempts < 100:
-            attempts += 1
-            candidates = generate_random_traps(
-                n, ALPHABET, rng, n_traps=1, avoid_start=True, start_state=0
-            )
-            if not candidates:
-                continue
-            candidate = candidates[0]
-            if candidate in seen:
-                continue
-            trial = seen | {candidate}
-            if verify_trap_free_path_exists(n, 0, ALPHABET, lambda s, a: trans[s][a][0], trial):
-                seen.add(candidate)
+        # Keep safe recovery from every state, not just initial-state reachability.
+        # A shuffled finite pool avoids repeated draws and the old 100-try ceiling.
+        candidates = [(s, a) for s in range(1, n) for a in ALPHABET]
+        rng.shuffle(candidates)
+        blocked: set[tuple[int, str]] = set()
+        for candidate in candidates:
+            trial = blocked | {candidate}
+            if is_strongly_connected(n, ALPHABET, lambda s, a: targets[s][a], trial):
+                blocked = trial
                 trap_pairs.append(candidate)
+                if len(trap_pairs) == max(1, n // 3):
+                    break
 
     table = {
         "n": n,
         "start": 0,
-        "trans": {
-            str(s): {a: [ns, out] for a, (ns, out) in trans[s].items()} for s in range(n)
-        },
+        "trans": {str(s): {a: [ns, out] for a, (ns, out) in trans[s].items()} for s in range(n)},
     }
     return {"table": table, "trap_pairs": [[s, a] for s, a in trap_pairs]}

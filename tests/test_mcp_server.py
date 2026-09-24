@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -12,6 +13,7 @@ from mcp.client.stdio import StdioServerParameters
 from dedeucerl.cli.mcp import build_episode, parse_args
 from dedeucerl.ir import TASK_REGISTRY
 from dedeucerl.surface.mcp import MCPEpisodeServer
+from dedeucerl.surface.dataset import instance_from_dict
 from dedeucerl.utils.errors import ErrorCode
 
 
@@ -71,8 +73,8 @@ def test_mcp_terminal_tool_call_auto_scores_and_persists(tmp_path: Path) -> None
             )
             assert result.is_error is False
             assert result.structured_content["ok"] is True
-            assert result.structured_content["score"] == 0.99
-            assert result.structured_content["reward"] == 0.99
+            assert result.structured_content["score"] == 1.0
+            assert result.structured_content["reward"] == 1.0
             assert result.structured_content["termination_reason"] == "solved"
             assert episode.final_result is not None
         return episode
@@ -84,7 +86,7 @@ def test_mcp_terminal_tool_call_auto_scores_and_persists(tmp_path: Path) -> None
     trace = [json.loads(line) for line in trace_path.read_text(encoding="utf-8").splitlines()]
 
     assert saved["termination_reason"] == "solved"
-    assert saved["score"] == 0.99
+    assert saved["score"] == 1.0
     assert saved["reward"] == saved["score"]
     assert saved["tool_calls"] == 1
     assert [event["event"] for event in trace] == [
@@ -94,6 +96,31 @@ def test_mcp_terminal_tool_call_auto_scores_and_persists(tmp_path: Path) -> None
     ]
     assert episode.finalize("disconnected") == episode.final_result
     assert len(trace_path.read_text(encoding="utf-8").splitlines()) == 3
+
+
+def test_saved_older_distribution_keeps_its_machine_and_version(tmp_path: Path) -> None:
+    split = json.loads((Path(__file__).parents[1] / "dataset/smoke/mealy_smoke.json").read_text())
+    instance = instance_from_dict(split["dev"]["items"][0]["instance"])
+    ir = TASK_REGISTRY["mealy"].ir
+    assert instance.kernel_version == "2.0" != ir.version
+
+    async def exercise():
+        episode = MCPEpisodeServer(ir, instance, runs_dir=tmp_path, run_id="saved")
+        async with Client(episode.server, mode="legacy") as client:
+            observed = await client.call_tool("act", {"symbol": "A"})
+            assert (
+                observed.structured_content["out"]
+                == instance.private["table"]["trans"]["0"]["A"][1]
+            )
+            solved = await client.call_tool(
+                "submit_table", {"table_json": json.dumps(instance.private["table"])}
+            )
+            assert solved.structured_content["ok"]
+        assert episode.final_result["task_version"] == "2.0"
+
+    asyncio.run(exercise())
+    trace = [json.loads(line) for line in (tmp_path / "saved/trace.jsonl").read_text().splitlines()]
+    assert trace[0]["task_version"] == trace[-1]["task_version"] == "2.0"
 
 
 def test_mcp_rejects_calls_after_terminal_without_extending_trace(tmp_path: Path) -> None:
@@ -148,6 +175,18 @@ def test_mcp_reports_correct_submission_after_trap() -> None:
     async def exercise() -> None:
         ir = TASK_REGISTRY["mealy"].ir
         instance = ir.generator.sample(seed=0, budget=5, n_states=3, trap=True)
+        # This tests terminal scoring, independent of generator seeds/topology.
+        instance = replace(
+            instance,
+            private={
+                "table": {
+                    "n": 3,
+                    "start": 0,
+                    "trans": {str(s): {a: [(s + 1) % 3, s] for a in "ABC"} for s in range(3)},
+                },
+                "trap_pairs": [[1, "B"]],
+            },
+        )
         episode = MCPEpisodeServer(ir, instance, persist=False)
         async with Client(episode.server, mode="legacy") as client:
             await client.call_tool("act", {"symbol": "A"})

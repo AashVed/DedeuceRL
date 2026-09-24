@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Literal, Mapping, Protocol, Sequence
+from typing import Any, Generic, Literal, Mapping, Protocol, Sequence, TypeVar
 
 from dedeucerl.utils.errors import DedeuceError
+
+State = TypeVar("State")
+State_co = TypeVar("State_co", covariant=True)
 
 
 @dataclass(frozen=True)
@@ -36,10 +39,10 @@ class KernelParam:
 
 
 @dataclass(frozen=True)
-class KernelTransition:
+class KernelTransition(Generic[State_co]):
     """Result of a state-changing probe or diagnostic operation."""
 
-    next_state: Any
+    next_state: State_co
     observation: Mapping[str, Any]
     trap: bool = False
     info: Mapping[str, Any] = field(default_factory=dict)
@@ -53,22 +56,25 @@ class KernelInputError(Exception):
         self.error = error
 
 
-class SystemKernel(Protocol):
+class SystemKernel(Protocol[State]):
     """Pure hidden-system semantics.
 
     Implementations must not depend on Verifiers, datasets, provider adapters,
     prompts, CLIs, or TaskIR surface compilers.
     """
 
-    name: str
-    version: str
+    @property
+    def name(self) -> str: ...
 
-    def initial_state(self, instance: TaskInstance) -> Any: ...
+    @property
+    def version(self) -> str: ...
+
+    def initial_state(self, instance: TaskInstance) -> State: ...
 
     def call(
         self,
         instance: TaskInstance,
-        state: Any,
+        state: State,
         tool_name: str,
         action: Any,
-    ) -> KernelTransition: ...
+    ) -> KernelTransition[State]: ...

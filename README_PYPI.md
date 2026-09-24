@@ -1,11 +1,11 @@
 # DedeuceRL
 
-Benchmark LLMs on active hidden-system identification.
+Benchmark LLMs on hidden-system exploration and control.
 
 DedeuceRL is organized around four layers:
 
 - `dedeucerl.kernel`: pure hidden-system semantics
-- `dedeucerl.ir`: executable action spaces, hypothesis/equivalence contracts, task contracts, and renderers
+- `dedeucerl.ir`: typed objectives, action spaces, hypothesis/equivalence contracts, and renderers
 - `dedeucerl.runtime`: budget, traps, events, tool dispatch, and replay
 - `dedeucerl.surface`: prompts, provider tool schemas, datasets, CLIs, Verifiers, and MCP
 
@@ -25,8 +25,18 @@ dedeucerl-eval --skin mealy --split tasks.json --model heuristic:none --out resu
 dedeucerl-aggregate results.jsonl --format markdown
 ```
 
-`mealy` is the current reference kernel. Protocol/APIEnv/ExprPolicy are planned
-to return as kernels after the architecture stabilizes.
+The `mealy` task asks for a transition table. `mealy_palindrome` asks for an action
+sequence that produces a palindrome. Each submission executes from initial state
+in isolation; exploration, submission fees, and executed actions share one budget.
+Agents can retry failed plans while budget remains, or submit a final claim that
+no qualifying safe sequence exists. Generation keeps natural impossible cases and
+skips possible-but-unaffordable ones. Either correct answer earns reward 1; failure
+earns 0, with budget usage reported separately.
+
+Authors can define their own typed candidates, evaluators, and optional feedback
+for any kernel through `Objective` and `TaskIR`. See the
+[custom-objective guide](https://github.com/AashVed/DedeuceRL/blob/dev/docs/OBJECTIVES.md)
+and its non-Mealy workflow example.
 
 ## MCP Mode
 
@@ -34,6 +44,7 @@ Expose one stateful episode to any MCP host over STDIO:
 
 ```bash
 dedeucerl-mcp serve --task mealy --seed 42
+dedeucerl-mcp serve --task mealy_palindrome --seed 7 --budget 25 --feedback
 ```
 
 The MCP initialization supplies the task instructions and tools. DedeuceRL
