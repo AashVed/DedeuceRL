@@ -1,0 +1,9 @@
+include CHANGELOG.md CITATION.cff CONTRIBUTING.md
+include examples/custom_objective.py
+include dataset/smoke/mealy_smoke.json
+include docs/KERNELS.md docs/MCP.md docs/OBJECTIVES.md docs/GENERATION.md
+include docs/skin-ideas/apienv.md docs/skin-ideas/exprpolicy.md docs/skin-ideas/protocol.md
+prune .dedeucerl
+prune research
+prune docs/reviews
+global-exclude *.jsonl *.log

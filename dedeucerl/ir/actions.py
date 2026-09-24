@@ -5,7 +5,7 @@ from __future__ import annotations
 import itertools
 import json
 from dataclasses import dataclass, field, replace
-from typing import Any, Callable, Generic, Iterable, Literal, Mapping, Protocol, Sequence, TypeVar
+from typing import Any, Callable, Generic, Iterable, Literal, Mapping, Protocol, Sequence, TypeVar, cast
 
 from dedeucerl.kernel.types import TaskInstance
 from dedeucerl.utils.schema import validate_jsonschema
@@ -43,7 +43,8 @@ class ActionContext:
 class ActionSpace(Protocol, Generic[A]):
     """Validated and canonicalizable action vocabulary."""
 
-    name: str
+    @property
+    def name(self) -> str: ...
 
     def sample(self, rng: Any) -> A: ...
 
@@ -74,7 +75,7 @@ class EnumSpace(Generic[A]):
     def sample(self, rng: Any) -> A:
         if not self.values:
             raise ActionValidationError(f"{self.name}: cannot sample from empty enum")
-        return rng.choice(list(self.values))
+        return cast(A, rng.choice(list(self.values)))
 
     def contains(self, action: Any) -> bool:
         try:
@@ -435,7 +436,7 @@ class MaskedSpace(Generic[A]):
         except NonEnumerableActionSpace:
             values = []
         if values:
-            return rng.choice(values)
+            return cast(A, rng.choice(values))
         for _ in range(1000):
             action = self.base_space.sample(rng)
             if self._allowed(action):
@@ -568,8 +569,8 @@ def _wrapped_value_schema(schema: Mapping[str, Any]) -> dict[str, Any]:
 
 def _same_json_scalar(left: Any, right: Any) -> bool:
     if not _is_json_scalar(left) or not _is_json_scalar(right):
-        return left == right
-    return type(left) is type(right) and left == right
+        return bool(left == right)
+    return type(left) is type(right) and bool(left == right)
 
 
 def _is_json_scalar(value: Any) -> bool:

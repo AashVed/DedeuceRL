@@ -28,9 +28,25 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev]"
 
+      - name: Reject tracked working artifacts
+        run: |
+          python - <<'PY'
+          import subprocess
+
+          blocked = subprocess.check_output(
+              ["git", "ls-files", "--cached", "--ignored", "--exclude-from=.gitignore"],
+              text=True,
+          )
+          if blocked:
+              raise SystemExit("Keep local/generated files out of Git:\n" + blocked)
+          PY
+
       - name: Lint (ruff)
         run: |
           ruff check .
+
+      - name: Type check objective authoring API
+        run: mypy
 
       - name: Tests (pytest)
         run: |

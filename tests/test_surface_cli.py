@@ -171,23 +171,16 @@ def test_vf_tool_builder_includes_optional_properties() -> None:
         return json.dumps({"ok": True})
 
     env._dispatch_tool = dispatch  # type: ignore[method-assign]
-    tool = env._make_tool(
-        "probe",
-        {
-            "type": "object",
-            "properties": {
-                "required_arg": {"type": "string"},
-                "optional_arg": {"type": "integer"},
-            },
-            "required": ["required_arg"],
-        },
-    )
+    tool = env._make_tool("probe")
 
     assert json.loads(tool(required_arg="x")) == {"ok": True}
     assert calls[-1] == ("probe", {"required_arg": "x"})
 
     assert json.loads(tool(required_arg="x", optional_arg=2)) == {"ok": True}
     assert calls[-1] == ("probe", {"required_arg": "x", "optional_arg": 2})
+
+    tool(required_arg="x", optional_arg=None)
+    assert calls[-1] == ("probe", {"required_arg": "x", "optional_arg": None})
 
 
 def test_generate_eval_parallel_and_selfcheck(tmp_path: Path) -> None:

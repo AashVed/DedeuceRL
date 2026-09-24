@@ -40,11 +40,15 @@ def compile_prompt(
     tools_text = "\n".join(_format_tool(contract) for contract in runtime_contracts)
 
     system = (
-        "You are an autonomous tool-using agent solving a hidden-system identification task.\n"
+        "You are an autonomous tool-using agent solving a hidden-system task.\n"
         "Return only function tool calls; do not answer in natural language.\n\n"
         "Episode semantics:\n"
         "- Probe/diagnostic tools may reveal observations and can change hidden state.\n"
-        "- Submit tools judge a hypothesis. Correct submissions end the episode.\n"
+        "- Submit tools evaluate a candidate solution. Correct submissions end the episode.\n"
+        "- Failed submissions may be revised unless the objective declares them terminal.\n"
+        "- A tool result with done=true ends the episode, including terminal failures.\n"
+        "- Exploration and attempts share the budget.\n"
+        "- Submitted executions start at the initial state and do not move exploration state.\n"
         "- Every valid or invalid tool call can consume budget.\n"
         "- Budget exhaustion ends the episode.\n"
         "- Trap hits are reported in tool results and may affect reward.\n\n"
@@ -53,12 +57,14 @@ def compile_prompt(
         f"{tools_text}"
     )
     if feedback:
-        system += "\n\nFeedback mode: incorrect submissions may include a counterexample."
+        system += (
+            "\n\nFeedback mode: incorrect submissions may include objective-specific feedback."
+        )
 
     user = (
         "OBSERVATION:\n"
         + json.dumps(observation, sort_keys=True)
-        + "\n\nUse the available tools to identify the hidden system, then submit a complete hypothesis."
+        + "\n\nUse the available tools to accomplish the goal in the observation."
     )
 
     return [{"role": "system", "content": system}, {"role": "user", "content": user}]
@@ -82,4 +88,4 @@ def _format_tool(contract: ToolActionContract[Any]) -> str:
 
 
 def _default_guidance() -> str:
-    return "Identify the hidden system using the exposed tools."
+    return "Explore the hidden system and submit a solution to the stated objective."

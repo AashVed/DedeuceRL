@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-import keyword
+from inspect import Signature
 from typing import Callable, Iterable
 
 import verifiers as vf
@@ -37,7 +37,7 @@ class KernelToolEnv(vf.StatefulToolEnv):
             **kwargs,
         )
         # Verifiers normally derives these definitions from Python annotations.
-        # Runtime-compiled tools intentionally have dynamic signatures, so retain
+        # Runtime-compiled tools forward JSON arguments unchanged, so retain
         # the richer TaskIR schemas as the model-facing source of truth instead.
         self.tool_defs = tool_defs
 
@@ -51,6 +51,18 @@ class KernelToolEnv(vf.StatefulToolEnv):
         self._runtime_ref = runtime
         self._state_ref = state
         return state
+
+    @vf.stop
+    async def episode_finished(self, state: State) -> bool:
+        return bool(state.get("done", False))
+
+    async def env_response(self, messages: vf.Messages, state: State, **kwargs) -> vf.Messages:
+        response = await super().env_response(messages, state, **kwargs)
+        if state.get("done", False):
+            # Tool execution happens after Verifiers' loop stop check. This
+            # signal preserves the final tool results without another model call.
+            state["final_env_response"] = response
+        return response
 
     def update_tool_args(self, tool_name: str, tool_args: dict, messages, state, **kwargs) -> dict:
         _ = (tool_name, tool_args, messages, kwargs)
@@ -75,7 +87,7 @@ class KernelToolEnv(vf.StatefulToolEnv):
         )
         contracts = entry.ir.action_contracts(context)
         schemas = [contract.to_tool_schema() for contract in contracts]
-        tools = [self._make_tool(schema["name"], schema["parameters"]) for schema in schemas]
+        tools = [self._make_tool(schema["name"]) for schema in schemas]
         tool_defs = [
             Tool(
                 name=schema["name"],
@@ -99,35 +111,17 @@ class KernelToolEnv(vf.StatefulToolEnv):
             return 64
         return max(budgets) + (10 if feedback else 2)
 
-    def _make_tool(self, name: str, parameters_schema: dict) -> Callable[..., str]:
-        if not name.isidentifier():
-            raise ValueError(f"Tool name must be a valid Python identifier: {name!r}")
-        props = parameters_schema.get("properties", {})
-        required = parameters_schema.get("required", [])
-        if not isinstance(props, dict):
-            props = {}
-        if not isinstance(required, list):
-            required = []
+    def _make_tool(self, name: str) -> Callable[..., str]:
+        def tool(**kwargs) -> str:
+            return self._dispatch_tool(name, kwargs)
 
-        required_names = [str(arg) for arg in required if arg in props]
-        optional_names = [str(arg) for arg in props if arg not in required_names]
-        arg_names = [*required_names, *optional_names]
-        invalid = [arg for arg in arg_names if not arg.isidentifier() or keyword.iskeyword(arg)]
-        if invalid:
-            raise ValueError(f"Tool arguments must be valid Python identifiers: {invalid!r}")
-
-        signature_parts = [*required_names, *(f"{arg}=None" for arg in optional_names)]
-        lines = [f"def {name}({', '.join(signature_parts)}) -> str:", "    payload = {}"]
-        lines.extend(f"    payload[{arg!r}] = {arg}" for arg in required_names)
-        for arg in optional_names:
-            lines.append(f"    if {arg} is not None:")
-            lines.append(f"        payload[{arg!r}] = {arg}")
-        lines.append(f"    return _dispatch({name!r}, payload)")
-        source = "\n".join(lines) + "\n"
-        namespace = {"_dispatch": self._dispatch_tool}
-        exec(source, namespace)
-        tool = namespace[name]
+        tool.__name__ = name
         tool.__doc__ = f"Runtime-compiled tool '{name}'."
+        # The SDK derives a temporary schema during initialization and cannot
+        # represent arbitrary **kwargs. Our TaskIR schemas replace that schema
+        # immediately afterward; dispatch must preserve the original JSON keys,
+        # explicit nulls, and omissions for runtime validation and charging.
+        setattr(tool, "__signature__", Signature(return_annotation=str))
         return tool
 
     def _dispatch_tool(self, name: str, kwargs: dict) -> str:

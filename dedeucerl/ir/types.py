@@ -3,22 +3,18 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Mapping, Protocol, Sequence
+from typing import Any, Generic, Mapping, Protocol, Sequence, TypeVar
 
 from dedeucerl.ir.actions import ActionContext, ToolActionContract, ToolActionSpace
-from dedeucerl.ir.hypotheses import (
-    HypothesisContract,
-    HypothesisInputError,
-    HypothesisJudgment,
-    enrich_judgment,
-)
+from dedeucerl.ir.objectives import ObjectiveContract
 from dedeucerl.kernel.types import (
     KernelParam,
     KernelTransition,
     SystemKernel,
     TaskInstance,
 )
-from dedeucerl.utils import error_malformed_hypothesis
+
+State = TypeVar("State")
 
 
 class ObservationModel(Protocol):
@@ -39,28 +35,11 @@ class ResourceModel:
         return max(0, int(self.cost_overrides.get(contract.name, contract.cost)))
 
 
-@dataclass(frozen=True)
-class FeedbackModel:
-    """Incorrect-submission feedback policy."""
-
-    reveal_counterexample: bool = True
-
-    def counterexample(
-        self,
-        *,
-        feedback_enabled: bool,
-        judgment: HypothesisJudgment,
-        runtime_ok: bool,
-    ) -> Any | None:
-        if not self.reveal_counterexample or not feedback_enabled or runtime_ok:
-            return None
-        return judgment.counterexample
-
-
 class TaskGeneratorSpec(Protocol):
     """Deterministic task instance generator."""
 
-    params: Mapping[str, KernelParam]
+    @property
+    def params(self) -> Mapping[str, KernelParam]: ...
 
     def sample(self, *, seed: int, budget: int, **kwargs: Any) -> TaskInstance: ...
 
@@ -79,30 +58,29 @@ class Renderer(Protocol):
 
 
 @dataclass(frozen=True)
-class TaskIR:
+class TaskIR(Generic[State]):
     """Executable task contract compiled by runtimes and surfaces."""
 
     name: str
     version: str
-    kernel: SystemKernel
+    kernel: SystemKernel[State]
     action_space: ToolActionSpace
     observation_model: ObservationModel
-    hypothesis_contract: HypothesisContract
+    objective: ObjectiveContract[State]
     resource_model: ResourceModel
-    feedback_model: FeedbackModel
     generator: TaskGeneratorSpec
     renderers: Mapping[str, Renderer] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         non_submit_contracts = tuple(self.action_space.contracts)
-        submit_contracts = tuple(self.hypothesis_contract.tool_contracts())
+        submit_contracts = tuple(self.objective.tool_contracts())
 
         bad_non_submit = [
             contract.name for contract in non_submit_contracts if contract.kind == "submit"
         ]
         if bad_non_submit:
             raise ValueError(
-                "submit tools must be declared by the hypothesis contract: "
+                "submit tools must be declared by the objective: "
                 f"{bad_non_submit!r}"
             )
 
@@ -111,7 +89,7 @@ class TaskIR:
         ]
         if bad_submit:
             raise ValueError(
-                "hypothesis contracts may only declare submit tools: "
+                "objectives may only declare submit tools: "
                 f"{bad_submit!r}"
             )
 
@@ -125,7 +103,7 @@ class TaskIR:
     def action_context(
         self,
         instance: TaskInstance,
-        state: Any,
+        state: State,
         *,
         budget: int,
         queries_used: int,
@@ -145,7 +123,7 @@ class TaskIR:
 
     def action_contracts(self, context: ActionContext) -> list[ToolActionContract[Any]]:
         submit_contracts = [
-            contract.mask(context) for contract in self.hypothesis_contract.tool_contracts()
+            contract.mask(context) for contract in self.objective.tool_contracts()
         ]
         return [*self.action_space.contracts_for_context(context), *submit_contracts]
 
@@ -155,34 +133,8 @@ class TaskIR:
     def call(
         self,
         instance: TaskInstance,
-        state: Any,
+        state: State,
         tool_name: str,
         action: Any,
-    ) -> KernelTransition:
+    ) -> KernelTransition[State]:
         return self.kernel.call(instance, state, tool_name, action)
-
-    def submit(
-        self,
-        instance: TaskInstance,
-        tool_name: str,
-        action: Any,
-    ) -> HypothesisJudgment:
-        parse_result = self.hypothesis_contract.parse(tool_name, action)
-        hypothesis = parse_result.unwrap()
-
-        validation = self.hypothesis_contract.validate(instance, hypothesis)
-        validation.raise_for_error()
-
-        try:
-            normalized = self.hypothesis_contract.normalize(instance, hypothesis)
-        except HypothesisInputError:
-            raise
-        except Exception as e:
-            raise HypothesisInputError(error_malformed_hypothesis(str(e))) from e
-
-        judgment = self.hypothesis_contract.judge(instance, normalized)
-        counterexample = (
-            None if judgment.ok else self.hypothesis_contract.counterexample(instance, normalized)
-        )
-        distance = self.hypothesis_contract.distance(instance, normalized)
-        return enrich_judgment(judgment, counterexample=counterexample, distance=distance)

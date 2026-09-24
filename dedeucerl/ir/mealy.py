@@ -12,8 +12,8 @@ from dedeucerl.ir.actions import (
     ToolActionContract,
     ToolActionSpace,
 )
-from dedeucerl.ir.hypotheses import FiniteTransducerIsomorphismContract
-from dedeucerl.ir.types import FeedbackModel, ResourceModel, TaskIR
+from dedeucerl.ir.hypotheses import FiniteTransducerIsomorphismContract, HypothesisObjective
+from dedeucerl.ir.types import ResourceModel, TaskIR
 from dedeucerl.kernel.mealy import (
     ALPHABET,
     OUTPUTS,
@@ -27,7 +27,7 @@ from dedeucerl.kernel.types import (
 
 
 MEALY_TASK_NAME = "mealy"
-MEALY_TASK_VERSION = "2.2"
+MEALY_TASK_VERSION = "2.3"
 
 
 @dataclass(frozen=True)
@@ -124,7 +124,7 @@ class MealyPromptRenderer:
         return [{"role": "system", "content": system}, {"role": "user", "content": user}]
 
 
-def build_mealy_ir() -> TaskIR:
+def build_mealy_ir() -> TaskIR[int]:
     action_space = ToolActionSpace(
         contracts=(
             ToolActionContract(
@@ -162,14 +162,15 @@ def build_mealy_ir() -> TaskIR:
         kernel=MealyKernel(),
         action_space=action_space,
         observation_model=MealyObservationModel(),
-        hypothesis_contract=FiniteTransducerIsomorphismContract(
-            description="Submit a complete Mealy transition table as a JSON string.",
-            alphabet=ALPHABET,
-            outputs=OUTPUTS,
-            start_const=0,
+        objective=HypothesisObjective(
+            FiniteTransducerIsomorphismContract(
+                description="Submit a complete Mealy transition table as a JSON string.",
+                alphabet=ALPHABET,
+                outputs=OUTPUTS,
+                start_const=0,
+            )
         ),
         resource_model=ResourceModel(unknown_tool_cost=1, trap_ends_episode=False),
-        feedback_model=FeedbackModel(reveal_counterexample=True),
         generator=MealyGenerator(),
         renderers={"prompt": MealyPromptRenderer()},
     )

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from typing import Any, Generic, Protocol, TypeVar
 
 from dedeucerl.core.transducers import (
@@ -14,6 +14,7 @@ from dedeucerl.core.transducers import (
     transducer_tables_are_isomorphic,
 )
 from dedeucerl.ir.actions import JsonSchemaSpace, ProductSpace, ToolActionContract
+from dedeucerl.ir.objectives import EvaluationContext, ObjectiveResult
 from dedeucerl.kernel.types import TaskInstance
 from dedeucerl.utils import (
     DedeuceError,
@@ -79,9 +80,6 @@ class HypothesisJudgment:
 
     ok: bool
     observation: Mapping[str, Any] = field(default_factory=dict)
-    counterexample: Any | None = None
-    distance: float | None = None
-    info: Mapping[str, Any] = field(default_factory=dict)
 
 
 class HypothesisInputError(Exception):
@@ -95,8 +93,11 @@ class HypothesisInputError(Exception):
 class HypothesisContract(Protocol, Generic[H]):
     """Submission tools and semantic correctness for a task."""
 
-    name: str
-    version: str
+    @property
+    def name(self) -> str: ...
+
+    @property
+    def version(self) -> str: ...
 
     def tool_contracts(self) -> Sequence[ToolActionContract[Any]]: ...
 
@@ -334,15 +335,44 @@ class FiniteTransducerIsomorphismContract:
         )
 
 
-def enrich_judgment(
-    judgment: HypothesisJudgment,
-    *,
-    counterexample: Any | None,
-    distance: float | None,
-) -> HypothesisJudgment:
-    """Attach optional feedback fields computed outside `judge()`."""
+@dataclass(frozen=True)
+class HypothesisObjective(Generic[H]):
+    """Use an equivalence contract as one kind of submission objective."""
 
-    return replace(judgment, counterexample=counterexample, distance=distance)
+    contract: HypothesisContract[H]
+
+    @property
+    def name(self) -> str:
+        return self.contract.name
+
+    @property
+    def version(self) -> str:
+        return self.contract.version
+
+    def tool_contracts(self) -> Sequence[ToolActionContract[Any]]:
+        return self.contract.tool_contracts()
+
+    def evaluate(
+        self, context: EvaluationContext[Any], tool_name: str, candidate: Any, *, feedback: bool
+    ) -> ObjectiveResult:
+        instance = context.instance
+        hypothesis = self.contract.parse(tool_name, candidate).unwrap()
+        self.contract.validate(instance, hypothesis).raise_for_error()
+        try:
+            normalized = self.contract.normalize(instance, hypothesis)
+        except HypothesisInputError:
+            raise
+        except Exception as error:
+            raise HypothesisInputError(error_malformed_hypothesis(str(error))) from error
+        judgment = self.contract.judge(instance, normalized)
+        observation = dict(judgment.observation)
+        observation["counterexample"] = None
+        if feedback and not judgment.ok:
+            observation["counterexample"] = self.contract.counterexample(instance, normalized)
+            distance = self.contract.distance(instance, normalized)
+            if distance is not None:
+                observation["distance"] = distance
+        return ObjectiveResult(judgment.ok, observation)
 
 
 def _submit_return_schema(

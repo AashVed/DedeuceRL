@@ -8,16 +8,10 @@ import verifiers as vf
 
 
 def score_identification(state: Dict[str, Any]) -> float:
-    """Score a completed identification episode without a Verifiers runtime."""
+    """Binary correctness; execution efficiency is reported as separate metrics."""
     ok = bool(state.get("ok", False))
     trap = bool(state.get("trap_hit", False))
-    queries = int(state.get("queries_used", 0))
-
-    if not ok or trap:
-        return 0.0
-
-    efficiency_penalty = min(0.5, 0.01 * queries)
-    return float(max(0.0, 1.0 - efficiency_penalty))
+    return float(ok and not trap)
 
 
 def reward_identification(
@@ -30,7 +24,7 @@ def reward_identification(
     """Default reward function for active identification.
 
     Returns:
-        - 1.0 for success without trap (minus small efficiency penalty)
+        - 1.0 for success without trap, independent of budget usage
         - 0.0 for failure or trap
     """
     return score_identification(state)

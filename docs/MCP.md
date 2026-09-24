@@ -9,6 +9,7 @@ conversation orchestration, and sampling settings.
 
 ```bash
 dedeucerl-mcp serve --task mealy --seed 42
+dedeucerl-mcp serve --task mealy_palindrome --seed 7 --budget 25 --feedback
 ```
 
 This command speaks MCP over STDIO, so it is normally launched by an MCP host
@@ -56,6 +57,13 @@ The default paths are:
 termination reason, benchmark score, budget accounting, and timestamps. It never
 contains the hidden instance. `trace.jsonl` contains an `episode_start` record,
 one record per tool call, and an `episode_end` record.
+
+Custom-objective submissions use the same runtime and lifecycle. Failed attempts
+can be retried while budget remains; plan execution always starts from initial
+state and shares the episode budget. `tool_calls` counts external calls,
+`evaluation_steps` counts kernel calls inside submissions, and `queries_used`
+counts total budget consumed. Feedback types and disclosure are defined by the
+objective. See [custom objectives](OBJECTIVES.md).
 
 Useful options:
 

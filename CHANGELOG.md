@@ -2,8 +2,41 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+During current development, release numbers do not guarantee backward compatibility
+for task-author APIs. Breaking changes and migrations are documented per release.
+
+## [1.1.1] - 2026-09-22
+
+This release intentionally removes superseded task-author APIs. It is not a
+backward-compatible patch under Semantic Versioning. See
+[the migration guide](docs/OBJECTIVES.md#migration-from-110).
+
+### Added
+- Added general `Objective` contracts with typed candidates, private evaluation evidence, optional programmable feedback, and author-controlled terminal failures.
+- Linked kernel state, task, runtime, and evaluation context types; added strict JSON candidate decoding, generated feedback schemas, a `py.typed` marker, and authoring API type checks in CI.
+- Added isolated initial-state plan execution with per-action charging, retryable submissions, and `evaluation_steps` accounting across MCP, CLI, and Verifiers.
+- Added the registered `mealy_palindrome` task with configurable minimum length/variety and exact safe-solution existence/affordability checks, plus a non-Mealy workflow example.
+- Added custom-objective authoring and migration documentation, schema regressions, negative type tests, and cross-surface integration tests.
+- Added exact uniform strongly connected transition sampling and a reusable connectivity check, with structural audits and installed-MCP model comparisons.
+
+### Changed
+- Palindrome `submit_answer` accepts a sequence or a final impossibility claim. Its generator retains naturally impossible machines and skips possible-but-unaffordable candidates, without balancing classes.
+- Default reward is binary correctness for all tasks; valid plans and correct impossibility claims earn equally, with efficiency reported separately. Historical efficiency-weighted rewards are not directly comparable.
+- `TaskIR.objective` replaces `hypothesis_contract` and `feedback_model`; existing identification contracts are composed through `HypothesisObjective`.
+- Removed `FeedbackModel`, the old `TaskIR.submit` path, and unused hypothesis judgment enrichment fields. See `docs/OBJECTIVES.md` for migration.
+- Verifiers forwards original JSON arguments to runtime validation, preserving explicit nulls, omitted fields, and aliases.
+- Mealy task 2.3 and palindrome task 1.2 replace the fixed A cycle with a broader strongly connected, minimal-machine distribution; traps preserve safe recovery from every state. Existing saved instances retain their behavior.
+- Removed the unused first-action backbone helpers. See `docs/GENERATION.md` for sampling guarantees, scaling limits, and migration.
+
+### Fixed
+- Preserved terminal evaluator decisions when optional feedback serialization fails.
+- Stopped Verifiers on terminal tool results without requesting an extra model response.
+- Reported `done=true` on calls consuming the final budget unit.
+- Accounted for actually consumed budget when a tool's fee exceeds the remaining budget.
+- Validated feedback after serialization without exposing private validation input in error messages.
+- Kept nested feedback schema references valid in MCP response envelopes.
+- MCP records the served instance's task version when replaying older datasets.
 
 ## [1.1.0] - 2026-09-18
 

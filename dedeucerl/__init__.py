@@ -1,8 +1,9 @@
-"""DedeuceRL: TaskIR/runtime/surface framework for active identification."""
+"""DedeuceRL: TaskIR/runtime/surface framework for hidden-system objectives."""
 
 from __future__ import annotations
 
-from importlib.metadata import PackageNotFoundError, version as _pkg_version
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _pkg_version
 
 try:
     __version__ = _pkg_version("dedeucerl")
@@ -37,6 +38,20 @@ from dedeucerl.ir import (
     UnionSpace,
     get_task_entry,
 )
+from dedeucerl.ir.hypotheses import HypothesisObjective
+from dedeucerl.ir.objectives import (
+    Evaluation,
+    EvaluationContext,
+    Execution,
+    ExecutionStep,
+    FeedbackSpec,
+    Objective,
+    ObjectiveContract,
+    ObjectiveInputError,
+    ObjectiveResult,
+    ToolCall,
+)
+from dedeucerl.ir.typed_space import TypedSpace
 from dedeucerl.kernel import (
     KernelTransition,
     MealyKernel,
@@ -79,4 +94,16 @@ __all__ = [
     "make_rubric",
     "reward_identification",
     "score_identification",
+    "Evaluation",
+    "EvaluationContext",
+    "Execution",
+    "ExecutionStep",
+    "FeedbackSpec",
+    "Objective",
+    "ObjectiveContract",
+    "ObjectiveInputError",
+    "ObjectiveResult",
+    "ToolCall",
+    "HypothesisObjective",
+    "TypedSpace",
 ]
